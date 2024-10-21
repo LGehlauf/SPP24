@@ -40,6 +40,9 @@ class BigCar(object):
         self.action = env.process(self.run())
 
     def run(self):
+
+
+        Test
         while True:
             print('Start driving at %d' % self.env.now)
             trip_duration = 2
