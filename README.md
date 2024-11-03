@@ -1,4 +1,6 @@
 # SPP24
+
+# 02.11.2024 Karl Marbach
 Notes für Jasper und Leo
 - FLF = Fertigungs-Log-Files, TLF = Transport-Log-Files
 - Ich empfehle, dass ihr euch für eure Zwecke zunächst jeweils eine Kopie der Datenbank erstellt und auf dieses arbeitet, weil sie insbesondere die Einträge in der korrekten im Laufe der Bearbeitung noch ändern
@@ -9,3 +11,7 @@ Notes für Jasper und Leo
 - Einträge in den TLF ohne Charge entsprechen Leerfahrten 
 - Aktuell ist die Logik bei der FFZ Steuerung so, dass die Fahrzeuge immer an dem Zielort des letzten Auftrags warten
 - Wenn ihr Akkustand auf unter 20 % gesunken ist, fahren sie zur Ladestation und werden aufgeladen
+
+# 03.11.2024 Karl Marbach
+- Ich habe noch eine Engpasssteuerung als Auftragsfreigabeverfahren integriert, d.h. die Aufträge werden nun nach dem Bestellbestandsverfahren erzeugt, aber jeweils erst freigegeben, wenn der Bestand am Engpasssystem ein definiertes Level (z.b. 5 Arbeitsstunden) unterschreitet, damit können wir das Verstopfen der Produktion und stark schwankende Durchlaufzeiten vermeiden, wenn wir jetzt nach und nach neue Produkte ergänzen 
+- für Jasper: die DLZ ist jetzt aus der Auftragstabelle ablesbar, das erleichtert die Auswertung nochmal
