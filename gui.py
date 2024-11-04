@@ -44,14 +44,10 @@ def getTLF():
     TLF = cur.fetchall()
     return TLF
 
-def initPygameDrawBMGen():
+def initPygameDrawBMGen(stations):
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
     clock = pygame.time.Clock()
-
-    stations = [(100, 100), (700, 100), (100, 500), (700, 500)]
-    obj_pos = [100, 100]
-    target_station = 1
 
     while True:
         for event in pygame.event.get():
@@ -64,21 +60,32 @@ def initPygameDrawBMGen():
         screen.fill((255, 255, 255))
 
         for station in stations:
-            pygame.draw.rect(screen, (0, 0, 0), station, 20)
+            pygame.draw.circle(screen, (0, 0, 0), station['Pos'], 20)
 
 
     
         pygame.display.flip()
         clock.tick(30)
 
+BMGen = [   {'ShortName': 'RTL','Pos': (100, 300), 'Size': (50, 50), 'LongName': 'Rohteillager'},
+            {'ShortName': 'DRH','Pos': (300, 500), 'Size': (50, 50), 'LongName': 'Drehen'},
+            {'ShortName': 'SAE','Pos': (300, 300), 'Size': (50, 50), 'LongName': 'Sägen'},
+            {'ShortName': 'FRA','Pos': (300, 100), 'Size': (50, 50), 'LongName': 'Fräsen'},
+            {'ShortName': 'LFF','Pos': (500, 500), 'Size': (50, 50), 'LongName': 'Ladestation Flurförderfahrzeuge'},
+            {'ShortName': 'QPR','Pos': (500, 300), 'Size': (50, 50), 'LongName': 'Qualitätsprüfung'},
+            {'ShortName': 'FTL','Pos': (700, 300), 'Size': (50, 50), 'LongName': 'Fertigteillager'}
+        ]
+
+
+
+
+initPygameDrawBMGen(BMGen)
 
 
 FLF = getFLF()
 
-initPygameDrawBMGen()
-
-
 
 b= 1
+
 
 con.close()
