@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 
 # db
-.db
-.db-journal
+*.db
+*.db-journal
 
 # C extensions
 *.so
