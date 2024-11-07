@@ -1,53 +1,38 @@
 import sqlite3
 import pygame
 import sys
+from datetime import datetime, timedelta
+import re
 
-con = sqlite3.connect('prod_data.db')
-cur = con.cursor()
 
+# to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
 
-def printDB():
-    # FLF ----------------------------
-    cur.execute("SELECT * FROM FLF")
-    FLF = cur.fetchall()
+def parse_datetime(datums_string:str):
+    for format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(datums_string, format)
+        except ValueError:
+            continue
+    raise ValueError(f"Datumsformat von '{datums_string}' ist unbekannt")
 
-    print(f"Inhalt der Tabelle: FLF (Fertigungs Log Files)")
+def parse_route(route_string:str) -> list[tuple]:
+    matches = re.findall(r"([a-z])", route_string)
+    return tuple(matches)
 
-    # Spaltennamen der Tabelle anzeigen
-    FLFColumnNames = [description[0] for description in cur.description]
-    print(", ".join(FLFColumnNames))  
-
-    for row in FLF:
-        formatiertes_tupel = [f"{wert:.2f}" if isinstance(wert, float) else str(wert) for wert in row]
-        print("\t".join(formatiertes_tupel))
-
-    # TLF ----------------------------
-    cur.execute("SELECT * FROM TLF")
-    TLF = cur.fetchall()
-
-    print(f"Inhalt der Tabelle: TLF (Transport Log Files)")
-
-    TLFColumnNames = [description[0] for description in cur.description]
-    print(", ".join(TLFColumnNames)) 
-
-    for row in TLF:
-        formatiertes_tupel = [f"{wert:.2f}" if isinstance(wert, float) else str(wert) for wert in row]
-        print("\t".join(formatiertes_tupel))
-
-def getFLF():
-    cur.execute("SELECT * FROM FLF")
-    FLF = cur.fetchall()
-    return FLF
-
-def getTLF():
-    # Vorgangsnummer, FFZ ID, Startknoten, Endknoten, Startzeitpunkt, Endzeitpunkt, Akkustand, Charge
+def getTLF(cur):
     cur.execute("SELECT * FROM TLF")
     raw = cur.fetchall()
-    keys = ['VorgangsNr', 'FFZ_ID', 'Startknoten', 'Endknoten', 'Startzeitpunkt', 'Endzeitpunkt', 'Akkustand', 'Charge']
-    TLF = [dict(zip(keys, tupel)) for tupel in raw]
+    keys = ['VorgangsNr', 'FFZ_ID', 'Startknoten', 'Endknoten', 'Route', 'Startzeitpunkt', 'Endzeitpunkt', 'Akkustand', 'Charge']    
+    TLF = []
+    for tupel in raw:
+        Dict = dict(zip(keys, tupel))
+        Dict['Startzeitpunkt'] = parse_datetime(Dict['Startzeitpunkt'])
+        Dict['Endzeitpunkt'] = parse_datetime(Dict['Endzeitpunkt'])
+        Dict['Route'] = parse_route(Dict['Route'])
+        TLF.append(Dict)
     return TLF
 
-def PygameDrawStation(screen:pygame.surface.Surface, station:dict, font:pygame.font.Font) -> pygame.rect.Rect:
+def PygameDrawStation(screen, station:dict, font):
     main = (
         station['Pos'][0] - 0.5 * station['Size'][0], # left
         station['Pos'][1] - 0.5 * station['Size'][1], # top
@@ -87,45 +72,51 @@ def PygameDrawStation(screen:pygame.surface.Surface, station:dict, font:pygame.f
         Rect = pygame.draw.rect(screen, (0, 0, 0), wrapper, width=1, border_radius=10)
     return Rect
 
-def PygameDrawCar(screen:pygame.surface.Surface, car:str, stationRects:list, Offset:int, font:pygame.font.Font) -> pygame.rect.Rect:
-    chargingStation = [item for item in stationRects if item.get('ShortName') == "LFF"]
-    main = (
-        chargingStation[0]['Rect'].midleft[0] + 10 + Offset, 
-        chargingStation[0]['Rect'].midleft[1],
-        20, 20
-    )
-    Rect = pygame.draw.rect(screen, (100,100,100), main, border_radius=3)
-    label_text = f"{car}"
+def PyGameDrawClock(screen, font, clockIntern, clockExtern, fps):
+    label_text = f"intern clock (seconds): {clockIntern}"
     label = font.render(label_text, True, (0,0,0))
-    label_rect = label.get_rect(midbottom=(Rect.midtop))
+    label_rect = label.get_rect(midright=(650, 700))
     screen.blit(label, label_rect)
-    
-    return Rect
+    label_text = f"{clockExtern.strftime("%d. %B %Y %H:%M")}"
+    label = font.render(label_text, True, (0,0,0))
+    label_rect = label.get_rect(midleft=(750, 700))
+    screen.blit(label, label_rect)
 
-def PygameDrawLine(screen:pygame.surface.Surface,  stationRects:list) -> pygame.rect.Rect:
-    pass
-
-def CarMovement(screen, currMovement:list, lines:list, currTime:float):
+def CarMovement(screen, currMovement:list, lines:list, currTime, font):
+    width, height = 10, 10
     for movement in currMovement:
         for line in lines:
             if movement['Startknoten'] in [line['Start'], line['End']] and movement['Endknoten'] in [line['Start'], line['End']]:
+                # ich brauche hier die Koordinaten vom Startknoten
                 DistanceX = line['EndPoint'][0] - line['StartPoint'][0]
                 DistanceY = line['EndPoint'][1] - line['StartPoint'][1]
-                TimeRatio = (currTime - movement['Endzeitpunkt']) / (movement['Endzeitpunkt'] - movement['Startzeitpunkt'])
-                NewPosition = (line['StartPoint'][0] + DistanceX * TimeRatio, line['StartPoint'][1] + DistanceY * TimeRatio, 190, 190)
-                # for car in CarRects:
-                #     if car.get('FFZ_ID') == movement['FFZ_ID']:
-                #         car['Rect'].move(NewPosition)
-                Rect = pygame.draw.rect(screen, (100,100,100), NewPosition, border_radius=3)
-                a= 1
+                try:
+                    TimeRatio = (currTime - movement['Endzeitpunkt']) / (movement['Endzeitpunkt'] - movement['Startzeitpunkt'])
+                except:
+                    TimeRatio = 1
+                    print("TimeRatio div by 0", movement, line)
+                NewPosition = (line['StartPoint'][0] + DistanceX * TimeRatio, line['StartPoint'][1] + DistanceY * TimeRatio) #line['StartPoint'][0] falsch 
+                rect = (NewPosition[0] - width * 0.5, NewPosition[1] - height * 0.5, width, height)  
+                Rect = pygame.draw.rect(screen, (100,100,100), rect, border_radius=3)
+                # a= 1
+                try:
+                    label_text = f"{movement['FFZ_ID']} {movement['Startknoten']}->{movement['Endknoten']})"
+                    label = font.render(label_text, True, (0,0,0))
+                    label_rect = label.get_rect(midbottom=Rect.midtop)
+                    screen.blit(label, label_rect)
+                except:
+                    pass
+
                         
 
-def initPygame(stations:list, cars:set, lines:list, TLF:list) -> None:
+def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) -> None:
     pygame.init()
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
-    framerate = 5 # 30 fps
+    framerate = 30 # 30 fps
+    SimSpeed = 3 # in seconds per minute
     font = pygame.font.SysFont(None, 20)
+    ExternStartTime = TLF[0]['Startzeitpunkt']
 
     while True:
         for event in pygame.event.get():
@@ -140,15 +131,14 @@ def initPygame(stations:list, cars:set, lines:list, TLF:list) -> None:
             Rect = PygameDrawStation(screen, station, font)
             StationRects.append({'ShortName': station['ShortName'], 'Rect': Rect})
 
-        # CarRects = []
-        # for i, car in enumerate(cars):
-        #     Rect = PygameDrawCar(screen, car, StationRects, i * 25, font) # i is offset to avoid stacking
-        #     CarRects.append({'FFZ_ID': car, 'Rect': Rect})
+        currTimeIntern = pygame.time.get_ticks() / 1000
+        currTimeExtern = ExternStartTime + timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60
+        fps = clock.get_fps()
 
-        currTime = pygame.time.get_ticks() / 1000
+        PyGameDrawClock(screen, font ,currTimeIntern, currTimeExtern, fps)
 
         for line in TLF:
-            if line['Endzeitpunkt'] > currTime:
+            if line['Endzeitpunkt'] > currTimeExtern:
                 break
             else:
                 TLF.remove(line)
@@ -156,18 +146,15 @@ def initPygame(stations:list, cars:set, lines:list, TLF:list) -> None:
         currMovement = []
         i = 0 # counter of movements, limited to number of cars
         for line in TLF:
-            if line['Startzeitpunkt'] < currTime:
+            if line['Startzeitpunkt'] < currTimeExtern:
                 i += 1
                 currMovement.append(line)
+                # print(line)
             if i >= len(cars):
                 break
 
-        CarMovement(screen, currMovement, lines, currTime)
+        CarMovement(screen, currMovement, lines, currTimeExtern, font)
 
-        # TransportLines = []
-        # for line in lines:
-        #     Line = PygameDrawLine(screen, StationRects)
-    
         pygame.display.flip()
         clock.tick(framerate)
 
@@ -191,7 +178,10 @@ Lines = [   {'Start': 'a', 'End': 'c', 'Distance': 15, 'StartPoint': (100, 220),
             {'Start': 'e', 'End': 'f', 'Distance': 14, 'StartPoint': (1000, 285), 'EndPoint': (1200, 285)},
 ]
 
-TLF = getTLF()
+con = sqlite3.connect('prod_data.db')
+cur = con.cursor()
+
+TLF = getTLF(cur)
 FFZ = {row['FFZ_ID'] for row in TLF} # set of used FFZ
 
 
