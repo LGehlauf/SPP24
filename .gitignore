@@ -7,6 +7,10 @@ __pycache__/
 *.db
 *.db-journal
 
+*.xml
+*.iml
+
+
 # C extensions
 *.so
 
