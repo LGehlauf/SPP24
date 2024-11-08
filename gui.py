@@ -8,15 +8,15 @@ import math
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
 
-Lines = [   {'Start': 'a', 'End': 'c', 'Distance': 15, 'StartPoint': (100, 220), 'EndPoint': (400, 145)},
-            {'Start': 'a', 'End': 'b', 'Distance': 11, 'StartPoint': (200, 285), 'EndPoint': (400, 285)},
-            {'Start': 'a', 'End': 'd', 'Distance': 16, 'StartPoint': (100, 350), 'EndPoint': (400, 485)},
-            {'Start': 'c', 'End': 'g', 'Distance': 12, 'StartPoint': (600, 85), 'EndPoint': (800, 85)},
-            {'Start': 'c', 'End': 'b', 'Distance': 6, 'StartPoint': (500, 150), 'EndPoint': (500, 220)},
-            {'Start': 'b', 'End': 'd', 'Distance': 5, 'StartPoint': (500, 350), 'EndPoint': (500, 420)},
-            {'Start': 'd', 'End': 'e', 'Distance': 17, 'StartPoint': (600, 485), 'EndPoint': (900, 350)},
-            {'Start': 'g', 'End': 'e', 'Distance': 6, 'StartPoint': (900, 150), 'EndPoint': (900, 220)},
-            {'Start': 'e', 'End': 'f', 'Distance': 14, 'StartPoint': (1000, 285), 'EndPoint': (1200, 285)},
+Lines = [   {'StartEnd': ['a', 'c'], 'Start': 'a', 'End': 'c', 'Distance': 15, 'StartPoint': (100, 220), 'EndPoint': (400, 145)},
+            {'StartEnd': ['a', 'b'], 'Start': 'a', 'End': 'b', 'Distance': 11, 'StartPoint': (200, 285), 'EndPoint': (400, 285)},
+            {'StartEnd': ['a', 'd'], 'Start': 'a', 'End': 'd', 'Distance': 16, 'StartPoint': (100, 350), 'EndPoint': (400, 485)},
+            {'StartEnd': ['c', 'g'], 'Start': 'c', 'End': 'g', 'Distance': 12, 'StartPoint': (600, 85), 'EndPoint': (800, 85)},
+            {'StartEnd': ['c', 'b'], 'Start': 'c', 'End': 'b', 'Distance': 6, 'StartPoint': (500, 150), 'EndPoint': (500, 220)},
+            {'StartEnd': ['b', 'd'], 'Start': 'b', 'End': 'd', 'Distance': 5, 'StartPoint': (500, 350), 'EndPoint': (500, 420)},
+            {'StartEnd': ['d', 'e'], 'Start': 'd', 'End': 'e', 'Distance': 17, 'StartPoint': (600, 485), 'EndPoint': (900, 350)},
+            {'StartEnd': ['g', 'e'], 'Start': 'g', 'End': 'e', 'Distance': 6, 'StartPoint': (900, 150), 'EndPoint': (900, 220)},
+            {'StartEnd': ['e', 'f'], 'Start': 'e', 'End': 'f', 'Distance': 14, 'StartPoint': (1000, 285), 'EndPoint': (1200, 285)},
 ]
 
 class BMG:
@@ -123,27 +123,57 @@ def CarMovement(screen, currMovement:list, lines:list, currTime, font):
                 except:
                     pass
 
-def PyGameSampleCurrentMovements(TLF, time, cars):
-    currMovement = []
-    for line in TLF:
-        if line['Endzeitpunkt'] > time:
-            break
-        else:
-            TLF.remove(line)
+def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
+    for movement in currMovements:
+        if movement['Endzeitpunkt'] < time:
+            currMovements.remove(line)
     i = 0 # counter of movements, limited to number of cars
     for line in TLF:
-        if line['Startzeitpunkt'] <= time:
+        if i > len(cars):
+            raise NotImplementedError(f'{i} orders for {len(cars)} cars')
+        if line['Startzeitpunkt'] <= time and line['Endzeitpunkt'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
             i += 1
-            currMovement.append(line)
-        if i >= len(cars):
-            break
-    return currMovement
+            line['PyRoute'] = None
+            currMovements.append(line)
+            TLF.remove(line)
+        if line['Startzeitpunkt'] > time:
+            break 
+        
+    return currMovements
 
+def calcDistanceRatio(Route):
+    Distances = []
+    Sum = 0
+    # get the distances given in Lines 
+    for i in range(len(Route) - 1):
+        for line in Lines:
+            if Route[i] in line['StartEnd'] and Route[i+1] in line['StartEnd']:
+                Distances.append(line['Distance'])
+                Sum += line['Distance']
+                break
+    
+    return tuple(distance / Sum for distance in Distances)
+
+    
 def PyGameDrawCars(screen, font, currMovements, time):
     
     for movement in currMovements:
-        PyGameFindConnections(movement)
-    pass
+        if movement['PyRoute'] == None: # only executed once per movement
+            movement['PyRoute'] = PyGameFindConnections(movement) # jetzt sind die zu fahrenden koordinaten bekannt
+            movement['DistanceRatio'] = calcDistanceRatio(movement['Route']) 
+            movement['TravelTime'] = movement['Endzeitpunkt'] - movement['Startzeitpunkt']
+            a = 0
+        
+        
+
+        for i in range(len(movement['PyRoute'])):
+            if (time < movement['Startzeitpunkt'] + movement['DistanceRatio'][i] * movement['TravelTime'] 
+            and time > movement['Startzeitpunkt'] + movement['DistanceRatio'][i+1] * movement['TravelTime']):
+                Pos = (movement['PyRoute'][i][])
+                pygame.draw.rect(screen, (100,100,100), )
+        
+            pass
+
 
 def findShortestPath(stations1, stations2):
     min_distanz = float('inf')
@@ -152,22 +182,22 @@ def findShortestPath(stations1, stations2):
         for (x2, y2) in stations2:
             distanz = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             if distanz < min_distanz:
-                min_distanz = distanz
+                # min_distanz = distanz
                 bestes_paar = ((x1, y1), (x2, y2))
-
-    return bestes_paar, min_distanz
+    return bestes_paar #, min_distanz
 
 def PyGameFindConnections(movement):
+    PyRoute = []
     for i in range(len(movement['Route'])):
         if i == len(movement['Route']) - 1:
             break
         start = next((bmg for bmg in BMGen if bmg.Abbreviation == movement['Route'][i]), None)
         end = next((bmg for bmg in BMGen if bmg.Abbreviation == movement['Route'][i+1]), None)
 
-        bestes_paar, min_distance = findShortestPath(start.Stations, end.Stations)
-
-
-                        
+        bestes_paar = findShortestPath(start.Stations, end.Stations)
+        PyRoute.append(bestes_paar)
+    return tuple(PyRoute)
+        
 
 def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) -> None:
     pygame.init()
@@ -177,6 +207,7 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     SimSpeed = 3 # in seconds per minute
     font = pygame.font.SysFont(None, 20)
     ExternStartTime = TLF[0]['Startzeitpunkt']
+    currMovements = []
 
     while True:
         for event in pygame.event.get():
@@ -186,10 +217,6 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
 
         screen.fill((255, 255, 255))
 
-        # StationRects = []
-        # for station in stations:
-        #     Rect = PygameDrawStation(screen, station, font)
-        #     StationRects.append({'ShortName': station['ShortName'], 'Rect': Rect})
         for bmg in BMGen:
             bmg.draw(screen, font)
 
@@ -199,12 +226,10 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
 
         PyGameDrawClock(screen, font, currTimeIntern, currTimeExtern, fps)
 
-        currMovement = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars)
+        currMovements = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars, currMovements)
 
-        PyGameDrawCars(screen, font, currMovement, currTimeExtern)
+        PyGameDrawCars(screen, font, currMovements, currTimeExtern)
         
-        # CarMovement(screen, currMovement, lines, currTimeExtern, font)
-
         pygame.display.flip()
         clock.tick(framerate)
 
