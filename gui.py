@@ -3,6 +3,7 @@ import pygame
 import sys
 from datetime import datetime, timedelta
 import re
+import math
 
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
@@ -138,15 +139,34 @@ def PyGameSampleCurrentMovements(TLF, time, cars):
             break
     return currMovement
 
-def PyGameDrawCars(screen, font, movement, time):
-    PyGameFindConnection(movement['Route'])
+def PyGameDrawCars(screen, font, currMovements, time):
+    
+    for movement in currMovements:
+        PyGameFindConnections(movement)
     pass
 
-def PyGameFindConnections(Route):
-    for i in range(len(Route)):
-        if i == len(Route) - 1:
+def findShortestPath(stations1, stations2):
+    min_distanz = float('inf')
+    bestes_paar = None
+    for (x1, y1) in stations1:
+        for (x2, y2) in stations2:
+            distanz = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            if distanz < min_distanz:
+                min_distanz = distanz
+                bestes_paar = ((x1, y1), (x2, y2))
+
+    return bestes_paar, min_distanz
+
+def PyGameFindConnections(movement):
+    for i in range(len(movement['Route'])):
+        if i == len(movement['Route']) - 1:
             break
-        Route[i]
+        start = next((bmg for bmg in BMGen if bmg.Abbreviation == movement['Route'][i]), None)
+        end = next((bmg for bmg in BMGen if bmg.Abbreviation == movement['Route'][i+1]), None)
+
+        bestes_paar, min_distance = findShortestPath(start.Stations, end.Stations)
+
+
                         
 
 def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) -> None:
