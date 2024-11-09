@@ -1,5 +1,4 @@
 # SPP24
-
 # 02.11.2024 Karl Marbach
 Notes für Jasper und Leo
 - FLF = Fertigungs-Log-Files, TLF = Transport-Log-Files
@@ -17,3 +16,14 @@ Notes für Jasper und Leo
 - für Jasper: die DLZ ist jetzt aus der Auftragstabelle ablesbar, das erleichtert die Auswertung nochmal
 - ich habe jetzt auch noch die Fräsmaschine mit einem Produkt in Betrieb genommen
 - Es gibt jetzt auch einen Betriebskalender, welcher die Arbeiten je nach gewähltem Schichtregime zwischen 14:00 - 06:00 bzw. 22:00 - 06:00 pausiert, und Arbeit am Wochenende vermeidet
+
+# 09.11.2024 Karl Marbach
+- Ausschuss wird absofort mitsumuliert, er ergibt sich durch ziehen von Zufallszahlen aus einer Binomialverteilung mit Parametern n = Losgröße und p = Ausschussrate der Maschine, die jeweiligen Ausschüsse sind pro Maschine in den FLF bzw. pro Auftrag in der auftraege Tabelle abzulesen
+- Die Rüst- und Bearbeitungszeiten werden jetzt ebenfalls als Zufallszahlen aus einer linkssteilen Log-Normalverteilung gezogen (Mittelwert = Planbearbeitungzeit, Stabw = 6,67 % der Planbearbeitungszeit)
+- Maschinenausfälle werden jetzt simuliert, die Wartezeit zwischen zwei Ausfällen ist exponentialverteilt, die Ausfälle sind in einer neuen Tabelle Error-Log-Files (ELF) auszulesen
+- Für Jasper: Wenn du die OEE für einzelne Anlagen berechnen möchtest, kannst du die ungeplante Stillstandszeit aufgrund von Ausfällen aus ELF bekommen und die geplante Stillstandszeit aufgrund mangelnder Belegung aus FLF (als Summe der Zeiten, in welchen keine Bearbeitung stattfindet)
+- Für David: weitere Testcases:
+    - Wird an einer Maschine produziert, während sie aufgrund eines Ausfalls gewartet wird?
+    - Erhöht sich der Bestand im FTL jeweils nur um die tatsächlich produzierten Bauteile (also wird der Ausschuss beachtet?)
+
+
