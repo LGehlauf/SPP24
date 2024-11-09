@@ -126,7 +126,7 @@ def CarMovement(screen, currMovement:list, lines:list, currTime, font):
 def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
     for movement in currMovements:
         if movement['Endzeitpunkt'] < time:
-            currMovements.remove(line)
+            currMovements.remove(movement)
     i = 0 # counter of movements, limited to number of cars
     for line in TLF:
         if i > len(cars):
@@ -142,37 +142,56 @@ def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
     return currMovements
 
 def calcDistanceRatio(Route):
-    Distances = []
+    cumuDistances = []
+    cumuDistances.append(0)
     Sum = 0
     # get the distances given in Lines 
     for i in range(len(Route) - 1):
         for line in Lines:
             if Route[i] in line['StartEnd'] and Route[i+1] in line['StartEnd']:
-                Distances.append(line['Distance'])
+                cumuDistances.append(line['Distance'] + cumuDistances[-1])
                 Sum += line['Distance']
                 break
-    
-    return tuple(distance / Sum for distance in Distances)
+    # cumuDistances.pop(0)
+    return tuple(distance / Sum for distance in cumuDistances)
 
     
 def PyGameDrawCars(screen, font, currMovements, time):
-    
-    for movement in currMovements:
-        if movement['PyRoute'] == None: # only executed once per movement
-            movement['PyRoute'] = PyGameFindConnections(movement) # jetzt sind die zu fahrenden koordinaten bekannt
-            movement['DistanceRatio'] = calcDistanceRatio(movement['Route']) 
-            movement['TravelTime'] = movement['Endzeitpunkt'] - movement['Startzeitpunkt']
-            a = 0
+    width, height = 10, 10
+    for mov in currMovements:
+        if mov['PyRoute'] == None: # only executed once per movement
+            mov['PyRoute'] = PyGameFindConnections(mov) # jetzt sind die zu fahrenden koordinaten bekannt
+            mov['DistanceRatio'] = calcDistanceRatio(mov['Route']) # 
+            mov['TravelTime'] = mov['Endzeitpunkt'] - mov['Startzeitpunkt']
+            checkpointTimes = []
+            for ratio in mov['DistanceRatio']:
+                checkpointTimes.append(mov['Startzeitpunkt'] + ratio * mov['TravelTime'])    
+            mov['CheckpointTimes'] = checkpointTimes
         
         
-
-        for i in range(len(movement['PyRoute'])):
-            if (time < movement['Startzeitpunkt'] + movement['DistanceRatio'][i] * movement['TravelTime'] 
-            and time > movement['Startzeitpunkt'] + movement['DistanceRatio'][i+1] * movement['TravelTime']):
-                Pos = (movement['PyRoute'][i][])
-                pygame.draw.rect(screen, (100,100,100), )
-        
-            pass
+        for i in range(len(mov['PyRoute']) - 1):
+            # welche strecke muss genau jetzt animiert werden? Dafür gibt es die CheckpointTimes
+            if time > mov['CheckpointTimes'][i] and time < mov['CheckpointTimes'][i+1]:
+                DistanceX = mov['PyRoute'][i][1][0] - mov['PyRoute'][i][0][0]
+                DistanceY = mov['PyRoute'][i][1][1] - mov['PyRoute'][i][0][1]
+                TimeRatio = (time - mov['CheckpointTimes'][i]) / (mov['CheckpointTimes'][i+1] - mov['CheckpointTimes'][i])
+                PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
+                PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
+                rect = (PosX - width * 0.5, PosY - height * 0.5, width, height)  
+                Rect = pygame.draw.rect(screen, (100,100,100), rect, border_radius=2)
+                scaling_factor = int(mov['FFZ_ID'][-1]) * 20 
+                label_text = f"trying {mov['FFZ_ID']}   {mov['Route'][i]}  ->  {mov['Route'][i+1]})"
+                label = font.render(label_text, True, (0,0,0))
+                label_rect = label.get_rect(midleft=(200, 700 + scaling_factor))
+                screen.blit(label, label_rect)
+                try:
+                    label_text = f"{mov['FFZ_ID']} {mov['Startknoten']}->{mov['Endknoten']})"
+                    label = font.render(label_text, True, (0,0,0))
+                    label_rect = label.get_rect(midbottom=Rect.midtop)
+                    screen.blit(label, label_rect)
+                except:
+                    pass
+            
 
 
 def findShortestPath(stations1, stations2):
@@ -182,9 +201,9 @@ def findShortestPath(stations1, stations2):
         for (x2, y2) in stations2:
             distanz = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
             if distanz < min_distanz:
-                # min_distanz = distanz
+                min_distanz = distanz
                 bestes_paar = ((x1, y1), (x2, y2))
-    return bestes_paar #, min_distanz
+    return bestes_paar
 
 def PyGameFindConnections(movement):
     PyRoute = []
@@ -204,9 +223,9 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
     framerate = 60 # fps
-    SimSpeed = 3 # in seconds per minute
+    SimSpeed = 2 # in seconds per minute
     font = pygame.font.SysFont(None, 20)
-    ExternStartTime = TLF[0]['Startzeitpunkt']
+    ExternStartTime = TLF[0]['Startzeitpunkt'] - timedelta(minutes=1)
     currMovements = []
 
     while True:
@@ -227,6 +246,13 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
         PyGameDrawClock(screen, font, currTimeIntern, currTimeExtern, fps)
 
         currMovements = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars, currMovements)
+
+        for mov in currMovements:
+            scaling_factor = int(mov['FFZ_ID'][-1]) * 20 
+            label_text = f"{mov['FFZ_ID']}   {mov['Startknoten']}  ->  {mov['Endknoten']})"
+            label = font.render(label_text, True, (0,0,0))
+            label_rect = label.get_rect(midleft=(50, 700 + scaling_factor))
+            screen.blit(label, label_rect)
 
         PyGameDrawCars(screen, font, currMovements, currTimeExtern)
         
