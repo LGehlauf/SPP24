@@ -44,8 +44,8 @@ class BMG:
         screen.blit(label, label_rect)
         self.Rect = pygame.draw.rect(screen, (0, 0, 0), self.wrapper, width=1, border_radius=10)
         self.Stations = (self.Rect.midleft, self.Rect.midtop, self.Rect.midright, self.Rect.midbottom)
-        for station in self.Stations:
-            pygame.draw.circle(screen, (30,30,30), station, 5)
+        # for station in self.Stations:
+        #     pygame.draw.circle(screen, (30,30,30), station, 5)
         if not self.Lager:
             pygame.draw.rect(screen, (0, 0, 0), self.main, width=1, border_radius=10)
             pygame.draw.rect(screen, (0, 0, 0), self.pre, width=1, border_radius=5)
@@ -96,10 +96,12 @@ def PyGameDrawClock(screen, font, clockExtern, fps):
 
 def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
     for mov in currMovements:
-        if mov['EZP'] < time:
+        if mov['EZP'] < time: 
             currMovements.remove(mov)
-            WaitingEZP = next((line['SZP'] for line in TLF if mov['FFZ_ID'] == line['FFZ_ID']), None)
-            if WaitingEZP > mov['EZP']:
+            WaitingEZP_TLF = next((line['SZP'] for line in TLF if mov['FFZ_ID'] == line['FFZ_ID']), datetime.max) # das warten endet sobald der nächste start ist
+            WaitingEZP_CUR = next((line['SZP'] for line in currMovements if mov['FFZ_ID'] == line['FFZ_ID']), datetime.max)
+            WaitingEZP = min(WaitingEZP_CUR, WaitingEZP_TLF)
+            if mov['EZP'] < WaitingEZP and time < WaitingEZP:
                 currMovements.append({'VNR':'x', 'FFZ_ID':mov['FFZ_ID'],
                             'SK': mov['EK'], 'EK': mov['EK'],
                             # 'PyRoute': (mov['SK'], mov['EK']), 
@@ -116,6 +118,8 @@ def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
             TLF.remove(line)
         if line['SZP'] > time:
             break 
+    
+    
         
     return currMovements
 
@@ -232,7 +236,6 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
     framerate = 60 # fps
-    SimSpeed = 1 # in seconds per minute
     dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
     fontPath = dirPath + '/SourceSans3-Regular.ttf'
     font = pygame.font.Font(fontPath, 14)
@@ -246,7 +249,9 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     #     carList.append(pygame.Rect(100, 100, 20, 20))
     states = ['unpause', 'pause']
     state = 0
-
+    SimSpeeds = [-32, -16, -8, -4, -2, -1, -0.5, -0.25, 0.25, 0.5, 1, 2, 4, 8, 16, 32]
+    SimSpeed = 10
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -258,11 +263,11 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
                     state += 1
                     if state == 2: state = 0                        
                 if event.key == pygame.K_UP:
-                    SimSpeed += 0.5
-                    if SimSpeed > 10: SimSpeed = 10
+                    SimSpeed += 1
+                    if SimSpeed > len(SimSpeeds) - 1: SimSpeed = len(SimSpeeds) - 1
                 if event.key == pygame.K_DOWN:
-                    SimSpeed -= 0.5
-                    if SimSpeed < 0.5: SimSpeed = 0.5
+                    SimSpeed -= 1
+                    if SimSpeed == -1: SimSpeed = 0
 
 
         screen.fill((255, 255, 255))
@@ -273,16 +278,15 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
         if states[state] == 'pause':
             Time = Time
         elif states[state] == 'unpause':
-            passedTime = pygame.time.get_ticks() - passedTime
-            Time += timedelta(milliseconds=passedTime) #* 0.5 * SimSpeed 
-# TIME ?!?!?!
+            Time += timedelta(milliseconds=passedTime) * 100 * SimSpeeds[SimSpeed]
+            passedTime = clock.get_time()
 
         fps = clock.get_fps()
         PyGameDrawClock(screen, font, Time, fps)
 
         currMovements = PyGameSampleCurrentMovements(TLF, Time, cars, currMovements)
 
-        PyGameWrite(screen, font, f'Simspeed: {SimSpeed}, ticks: {pygame.time.get_ticks()}', (10, 500), 'left')
+        PyGameWrite(screen, font, f'Simspeed: {SimSpeeds[SimSpeed]}, ticks: {passedTime}', (10, 500), 'left')
 
         i = 0
         for key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'Startzeitpunkt', 'Endzeitpunkt']:
@@ -294,8 +298,9 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
             for key, value in mov.items():
                 if key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP']:
                     if key in ['SZP', 'EZP']:
-                        value.strftime('%H:%M')
-                    PyGameWrite(screen, font, str(value), (10 + i * 50, 670 + j * 20), 'left')   
+                        val = value.strftime('%H:%M')
+                        PyGameWrite(screen, font, str(val), (10 + i * 50, 670 + j * 20), 'left')   
+                    else: PyGameWrite(screen, font, str(value), (10 + i * 50, 670 + j * 20), 'left')
                     i += 1     
 
         # for i, mov in enumerate(currMovements):
