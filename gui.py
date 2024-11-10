@@ -11,16 +11,15 @@ import matplotlib.cm as cm
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
 
-
-Lines = [   {'StartEnd': ['a', 'c'], 'Start': 'a', 'End': 'c', 'Distance': 15, 'StartPoint': (100, 220), 'EndPoint': (400, 145)},
-            {'StartEnd': ['a', 'b'], 'Start': 'a', 'End': 'b', 'Distance': 11, 'StartPoint': (200, 285), 'EndPoint': (400, 285)},
-            {'StartEnd': ['a', 'd'], 'Start': 'a', 'End': 'd', 'Distance': 16, 'StartPoint': (100, 350), 'EndPoint': (400, 485)},
-            {'StartEnd': ['c', 'g'], 'Start': 'c', 'End': 'g', 'Distance': 12, 'StartPoint': (600, 85), 'EndPoint': (800, 85)},
-            {'StartEnd': ['c', 'b'], 'Start': 'c', 'End': 'b', 'Distance': 6, 'StartPoint': (500, 150), 'EndPoint': (500, 220)},
-            {'StartEnd': ['b', 'd'], 'Start': 'b', 'End': 'd', 'Distance': 5, 'StartPoint': (500, 350), 'EndPoint': (500, 420)},
-            {'StartEnd': ['d', 'e'], 'Start': 'd', 'End': 'e', 'Distance': 17, 'StartPoint': (600, 485), 'EndPoint': (900, 350)},
-            {'StartEnd': ['g', 'e'], 'Start': 'g', 'End': 'e', 'Distance': 6, 'StartPoint': (900, 150), 'EndPoint': (900, 220)},
-            {'StartEnd': ['e', 'f'], 'Start': 'e', 'End': 'f', 'Distance': 14, 'StartPoint': (1000, 285), 'EndPoint': (1200, 285)},
+Lines = [   {'StartEnd': ['a', 'c'], 'Distance': 15},
+            {'StartEnd': ['a', 'b'], 'Distance': 11},
+            {'StartEnd': ['a', 'd'], 'Distance': 16},
+            {'StartEnd': ['c', 'g'], 'Distance': 12},
+            {'StartEnd': ['c', 'b'], 'Distance': 6},
+            {'StartEnd': ['b', 'd'], 'Distance': 5},
+            {'StartEnd': ['d', 'e'], 'Distance': 17},
+            {'StartEnd': ['g', 'e'], 'Distance': 6},
+            {'StartEnd': ['e', 'f'], 'Distance': 14}
 ]
 
 class BMG:
@@ -89,10 +88,7 @@ def getTLF(cur):
         TLF.append(Dict)
     return TLF
 
-
-def PyGameDrawClock(screen, font, clockIntern, clockExtern, fps):
-    # text = f"intern clock (seconds): {clockIntern}"
-    # PyGameWrite(screen, font, text, (650, 700), 'right')
+def PyGameDrawClock(screen, font, clockExtern, fps):
     text = f"{clockExtern.strftime("%d. %B %Y %H:%M")}"
     PyGameWrite(screen, font, text, (600, 600), 'top')
     # text = f"FPS: {round(fps,1)}"
@@ -240,9 +236,10 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
     fontPath = dirPath + '/SourceSans3-Regular.ttf'
     font = pygame.font.Font(fontPath, 14)
-    startTime = TLF[0]['SZP'] - timedelta(minutes=1)
-    currTimeExtern = startTime
-    pauseTime = currTimeExtern - currTimeExtern
+    
+    Time = TLF[0]['SZP'] - timedelta(minutes=1)
+    passedTime = 0
+
     currMovements = []
     # carList = []
     # for car in cars:
@@ -273,33 +270,47 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
         for bmg in BMGen:
             bmg.draw(screen, font)
 
-        # BAUSTELLE -> pygame time get_ticks gibt kumulierte summe wieder, zeitbetrag wäre aber sehr viel geeigneter!
-
-        currTimeIntern = pygame.time.get_ticks() / 1000
         if states[state] == 'pause':
-            currTimeExtern = currTimeExtern
-            pauseTime = currTimeExtern - timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60
+            Time = Time
         elif states[state] == 'unpause':
-            currTimeExtern = startTime + timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60 - pauseTime
+            passedTime = pygame.time.get_ticks() - passedTime
+            Time += timedelta(milliseconds=passedTime) #* 0.5 * SimSpeed 
+# TIME ?!?!?!
+
         fps = clock.get_fps()
+        PyGameDrawClock(screen, font, Time, fps)
 
-        PyGameDrawClock(screen, font, currTimeIntern, currTimeExtern, fps)
+        currMovements = PyGameSampleCurrentMovements(TLF, Time, cars, currMovements)
 
-        currMovements = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars, currMovements)
+        PyGameWrite(screen, font, f'Simspeed: {SimSpeed}, ticks: {pygame.time.get_ticks()}', (10, 500), 'left')
 
-        PyGameWrite(screen, font, f'Simspeed: {SimSpeed}', (10, 500), 'left')
+        i = 0
+        for key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'Startzeitpunkt', 'Endzeitpunkt']:
+            PyGameWrite(screen, font, key, (10 + i * 50, 650), 'left')
+            i += 1
 
-        for i, mov in enumerate(currMovements):
-            # offset = int(mov['FFZ_ID'][-1]) * 20
-            # if mov['VNR'] != 'x':
-            #     text = f"{mov['FFZ_ID']}   {mov['SK']}  ->  {mov['EK']})"
-            # else: text = f"{mov['FFZ_ID']}   waiting at {mov['SK']}"
-            # PyGameWrite(screen, font, text, (50, 700 + offset), 'left')
-            formatedDict = format_dict(mov)
-            text = f"{formatedDict}"
-            PyGameWrite(screen, font, text, (10, 650 + i * 20), 'left')
+        for j, mov in enumerate(currMovements):
+            i = 0
+            for key, value in mov.items():
+                if key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP']:
+                    if key in ['SZP', 'EZP']:
+                        value.strftime('%H:%M')
+                    PyGameWrite(screen, font, str(value), (10 + i * 50, 670 + j * 20), 'left')   
+                    i += 1     
 
-        PyGameDrawCars(screen, font, currMovements, currTimeExtern)
+        # for i, mov in enumerate(currMovements):
+        #     # offset = int(mov['FFZ_ID'][-1]) * 20
+        #     if mov[i] in ['FFZ_ID', 'SK', 'EK', 'SZP', 'EZP']:
+        #         print('yay')
+        #     if mov['VNR'] != 'x':
+        #         text = f"{mov['FFZ_ID']}   {mov['SK']}  ->  {mov['EK']})"
+        #     else: text = f"{mov['FFZ_ID']}   waiting at {mov['SK']}"
+        #     # PyGameWrite(screen, font, text, (50, 700 + offset), 'left')
+        #     # formatedDict = format_dict(mov)
+        #     # text = f"{formatedDict}"
+        #     PyGameWrite(screen, font, text, (10, 650 + i * 20), 'left')
+
+        PyGameDrawCars(screen, font, currMovements, Time)
         
         pygame.display.flip()
         clock.tick(framerate)
