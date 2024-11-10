@@ -4,9 +4,13 @@ import sys
 from datetime import datetime, timedelta
 import re
 import math
+import os
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
+
 
 Lines = [   {'StartEnd': ['a', 'c'], 'Start': 'a', 'End': 'c', 'Distance': 15, 'StartPoint': (100, 220), 'EndPoint': (400, 145)},
             {'StartEnd': ['a', 'b'], 'Start': 'a', 'End': 'b', 'Distance': 11, 'StartPoint': (200, 285), 'EndPoint': (400, 285)},
@@ -30,7 +34,7 @@ class BMG:
         self.main = (self.Pos[0] - 0.5 * self.Size[0], self.Pos[1] - 0.5 * self.Size[1], self.Size[0], self.Size[1])
         self.pre = (self.main[0] - 1.2 * self.main[2], self.main[1] + 0.1 * self.main[3], 1.2 * self.main[2], 0.8 * self.main[3])
         self.post = (self.main[0] + self.main[2], self.pre[1], self.pre[2], self.pre[3])
-        self.wrapper = (self.pre[0] - 10, self.main[1] - 50, self.pre[2] + self.main[2] + self.post[2] + 20, self.main[3] + 70)
+        self.wrapper = (self.pre[0] - 10, self.main[1] - 50, self.pre[2] + self.main[2] + self.post[2] + 20, self.main[3] + 90)
         self.label_text = f"{self.LongName} ({self.Abbreviation})"
         self.Lager = Lager
         self.StationDistance = 5
@@ -61,6 +65,7 @@ BMGen = [RTL, SAE, DRH, FRA, QPR, FTL, LFF]
 def parse_datetime(datums_string:str):
     for format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
         try:
+
             return datetime.strptime(datums_string, format)
         except ValueError:
             continue
@@ -73,70 +78,47 @@ def parse_route(route_string:str) -> list[tuple]:
 def getTLF(cur):
     cur.execute("SELECT * FROM TLF")
     raw = cur.fetchall()
-    keys = ['VorgangsNr', 'FFZ_ID', 'Startknoten', 'Endknoten', 'Route', 'Startzeitpunkt', 'Endzeitpunkt', 'Akkustand', 'Charge']    
+    # keys = ['VorgangsNr', 'FFZ_ID', 'Startknoten', 'Endknoten', 'Route', 'Startzeitpunkt', 'Endzeitpunkt', 'Akkustand', 'Charge']    
+    keys = ['VNR', 'FFZ_ID', 'SK', 'EK', 'Route', 'SZP', 'EZP', 'Akkustand', 'Charge']
     TLF = []
     for tupel in raw:
         Dict = dict(zip(keys, tupel))
-        Dict['Startzeitpunkt'] = parse_datetime(Dict['Startzeitpunkt'])
-        Dict['Endzeitpunkt'] = parse_datetime(Dict['Endzeitpunkt'])
+        Dict['SZP'] = parse_datetime(Dict['SZP'])
+        Dict['EZP'] = parse_datetime(Dict['EZP'])
         Dict['Route'] = parse_route(Dict['Route'])
         TLF.append(Dict)
     return TLF
 
 
 def PyGameDrawClock(screen, font, clockIntern, clockExtern, fps):
-    # label_text = f"intern clock (seconds): {clockIntern}"
-    # label = font.render(label_text, True, (0,0,0))
-    # label_rect = label.get_rect(midright=(650, 700))
-    # screen.blit(label, label_rect)
-    label_text = f"{clockExtern.strftime("%d. %B %Y %H:%M")}"
-    label = font.render(label_text, True, (0,0,0))
-    label_rect = label.get_rect(midleft=(650, 700))
-    screen.blit(label, label_rect)
-    label_text = f"FPS: {round(fps,1)}"
-    label = font.render(label_text, True, (0,0,0))
-    label_rect = label.get_rect(midleft=(1100, 700))
-    screen.blit(label, label_rect)
-
-def CarMovement(screen, currMovement:list, lines:list, currTime, font):
-    width, height = 10, 10
-    for movement in currMovement:
-        for line in lines:
-            if movement['Startknoten'] in [line['Start'], line['End']] and movement['Endknoten'] in [line['Start'], line['End']]:
-                # ich brauche hier die Koordinaten vom Startknoten
-                DistanceX = line['EndPoint'][0] - line['StartPoint'][0]
-                DistanceY = line['EndPoint'][1] - line['StartPoint'][1]
-                try:
-                    TimeRatio = (currTime - movement['Endzeitpunkt']) / (movement['Endzeitpunkt'] - movement['Startzeitpunkt'])
-                except:
-                    TimeRatio = 1
-                    print("TimeRatio div by 0", movement, line)
-                NewPosition = (line['StartPoint'][0] + DistanceX * TimeRatio, line['StartPoint'][1] + DistanceY * TimeRatio) #line['StartPoint'][0] falsch 
-                rect = (NewPosition[0] - width * 0.5, NewPosition[1] - height * 0.5, width, height)  
-                Rect = pygame.draw.rect(screen, (100,100,100), rect, border_radius=3)
-                # a= 1
-                try:
-                    label_text = f"{movement['FFZ_ID']} {movement['Startknoten']}->{movement['Endknoten']})"
-                    label = font.render(label_text, True, (0,0,0))
-                    label_rect = label.get_rect(midbottom=Rect.midtop)
-                    screen.blit(label, label_rect)
-                except:
-                    pass
+    # text = f"intern clock (seconds): {clockIntern}"
+    # PyGameWrite(screen, font, text, (650, 700), 'right')
+    text = f"{clockExtern.strftime("%d. %B %Y %H:%M")}"
+    PyGameWrite(screen, font, text, (600, 600), 'top')
+    # text = f"FPS: {round(fps,1)}"
+    # PyGameWrite(screen, font, text, (1100, 700), 'left')
 
 def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
-    for movement in currMovements:
-        if movement['Endzeitpunkt'] < time:
-            currMovements.remove(movement)
+    for mov in currMovements:
+        if mov['EZP'] < time:
+            currMovements.remove(mov)
+            WaitingEZP = next((line['SZP'] for line in TLF if mov['FFZ_ID'] == line['FFZ_ID']), None)
+            if WaitingEZP > mov['EZP']:
+                currMovements.append({'VNR':'x', 'FFZ_ID':mov['FFZ_ID'],
+                            'SK': mov['EK'], 'EK': mov['EK'],
+                            # 'PyRoute': (mov['SK'], mov['EK']), 
+                            'SZP': mov['EZP'],
+                            'EZP': WaitingEZP})
     i = 0 # counter of movements, limited to number of cars
     for line in TLF:
         if i > len(cars):
             raise NotImplementedError(f'{i} orders for {len(cars)} cars')
-        if line['Startzeitpunkt'] <= time and line['Endzeitpunkt'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
+        if line['SZP'] <= time and line['EZP'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
             i += 1
             line['PyRoute'] = None
             currMovements.append(line)
             TLF.remove(line)
-        if line['Startzeitpunkt'] > time:
+        if line['SZP'] > time:
             break 
         
     return currMovements
@@ -154,44 +136,55 @@ def calcDistanceRatio(Route):
                 break
     # cumuDistances.pop(0)
     return tuple(distance / Sum for distance in cumuDistances)
-
     
+
+def viridis_to_rgb(fraction, total):
+    value = fraction / total
+    cmap = cm.get_cmap('viridis')
+    rgb = cmap(value)[:3]
+    rgb_255 = tuple(int(x * 255) for x in rgb)
+    return rgb_255
+
+
 def PyGameDrawCars(screen, font, currMovements, time):
-    width, height = 10, 10
+    width, height = 16, 16
     for mov in currMovements:
-        if mov['PyRoute'] == None: # only executed once per movement
-            mov['PyRoute'] = PyGameFindConnections(mov) # jetzt sind die zu fahrenden koordinaten bekannt
-            mov['DistanceRatio'] = calcDistanceRatio(mov['Route']) # 
-            mov['TravelTime'] = mov['Endzeitpunkt'] - mov['Startzeitpunkt']
-            checkpointTimes = []
-            for ratio in mov['DistanceRatio']:
-                checkpointTimes.append(mov['Startzeitpunkt'] + ratio * mov['TravelTime'])    
-            mov['CheckpointTimes'] = checkpointTimes
+        if mov['VNR'] != 'x':
+            if mov['PyRoute'] == None: # only executed once per movement
+                mov['PyRoute'] = PyGameFindConnections(mov) # jetzt sind die zu fahrenden koordinaten bekannt
+                mov['DistanceRatio'] = calcDistanceRatio(mov['Route']) # 
+                mov['TravelTime'] = mov['EZP'] - mov['SZP']
+                checkpointTimes = []
+                for ratio in mov['DistanceRatio']:
+                    checkpointTimes.append(mov['SZP'] + ratio * mov['TravelTime'])    
+                mov['CheckpointTimes'] = checkpointTimes
         
-        
-        for i in range(len(mov['PyRoute']) - 1):
-            # welche strecke muss genau jetzt animiert werden? Dafür gibt es die CheckpointTimes
-            if time > mov['CheckpointTimes'][i] and time < mov['CheckpointTimes'][i+1]:
-                DistanceX = mov['PyRoute'][i][1][0] - mov['PyRoute'][i][0][0]
-                DistanceY = mov['PyRoute'][i][1][1] - mov['PyRoute'][i][0][1]
-                TimeRatio = (time - mov['CheckpointTimes'][i]) / (mov['CheckpointTimes'][i+1] - mov['CheckpointTimes'][i])
-                PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
-                PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
-                rect = (PosX - width * 0.5, PosY - height * 0.5, width, height)  
-                Rect = pygame.draw.rect(screen, (100,100,100), rect, border_radius=2)
-                scaling_factor = int(mov['FFZ_ID'][-1]) * 20 
-                label_text = f"trying {mov['FFZ_ID']}   {mov['Route'][i]}  ->  {mov['Route'][i+1]})"
-                label = font.render(label_text, True, (0,0,0))
-                label_rect = label.get_rect(midleft=(200, 700 + scaling_factor))
-                screen.blit(label, label_rect)
-                try:
-                    label_text = f"{mov['FFZ_ID']} {mov['Startknoten']}->{mov['Endknoten']})"
-                    label = font.render(label_text, True, (0,0,0))
-                    label_rect = label.get_rect(midbottom=Rect.midtop)
-                    screen.blit(label, label_rect)
-                except:
-                    pass
-            
+            for i in range(len(mov['Route']) - 1):
+                # welche strecke muss genau jetzt animiert werden? Dafür gibt es die CheckpointTimes
+                if time > mov['CheckpointTimes'][i] and time < mov['CheckpointTimes'][i+1]:
+                    DistanceX = mov['PyRoute'][i][1][0] - mov['PyRoute'][i][0][0]
+                    DistanceY = mov['PyRoute'][i][1][1] - mov['PyRoute'][i][0][1]
+                    TimeRatio = (time - mov['CheckpointTimes'][i]) / (mov['CheckpointTimes'][i+1] - mov['CheckpointTimes'][i])
+                    PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
+                    PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
+                    rect = (PosX - width * 0.5, PosY - height * 0.5, width, height)
+                    colour = viridis_to_rgb(int(mov['FFZ_ID'][-1]), len(FFZ))
+                    Rect = pygame.draw.rect(screen, colour, rect, border_radius=2)
+                    # offset = int(mov['FFZ_ID'][-1]) * 20 
+                    # text = f"trying {mov['FFZ_ID']} [{mov['Route'][i]} -> {mov['Route'][i+1]}]"
+                    # PyGameWrite(screen, font, text, (200, 700 + offset), 'left')
+                    try:
+                        text = f"{mov['FFZ_ID']} -> {mov['EK']}"
+                        PyGameWrite(screen, font, text, Rect.midtop, 'bottom')
+                    except:
+                        pass
+
+        else: # current movement is waiting
+            offset = int(mov['FFZ_ID'][-1]) * 22
+            WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
+            rect = (WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20, width, height)
+            colour = viridis_to_rgb(int(mov['FFZ_ID'][-1]), len(FFZ))
+            Rect = pygame.draw.rect(screen, colour, rect, border_radius=2)
 
 
 def findShortestPath(stations1, stations2):
@@ -216,6 +209,28 @@ def PyGameFindConnections(movement):
         bestes_paar = findShortestPath(start.Stations, end.Stations)
         PyRoute.append(bestes_paar)
     return tuple(PyRoute)
+
+def PyGameWrite(screen, font, text, Pos, LRTD):
+    label = font.render(text, True, (0,0,0))
+    if (LRTD == 'left'): label_rect = label.get_rect(midleft=Pos)
+    if (LRTD == 'right'): label_rect = label.get_rect(midright=Pos)
+    if (LRTD == 'top'): label_rect = label.get_rect(midtop=Pos)
+    if (LRTD == 'bottom'): label_rect = label.get_rect(midbottom=Pos)
+    screen.blit(label, label_rect)
+
+def format_dict(data, fmt="%H:%M"):
+    if isinstance(data, dict):
+        return {k: format_dict(v, fmt) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [format_dict(item, fmt) for item in data]
+    elif isinstance(data, tuple):
+        return [format_dict(item, fmt) for item in data]
+    elif isinstance(data, datetime):
+        return data.strftime(fmt)
+    elif isinstance(data, float):
+        return round(data, 1)
+    else:
+        return data
         
 
 def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) -> None:
@@ -223,9 +238,11 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
     framerate = 60 # fps
-    SimSpeed = 2 # in seconds per minute
-    font = pygame.font.SysFont(None, 20)
-    ExternStartTime = TLF[0]['Startzeitpunkt'] - timedelta(minutes=1)
+    SimSpeed = 4 # in seconds per minute
+    dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
+    fontPath = dirPath + '/SourceSans3-Regular.ttf'
+    font = pygame.font.Font(fontPath, 14)
+    ExternStartTime = TLF[0]['SZP'] - timedelta(minutes=1)
     currMovements = []
 
     while True:
@@ -233,6 +250,10 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    pause
+
 
         screen.fill((255, 255, 255))
 
@@ -247,12 +268,15 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
 
         currMovements = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars, currMovements)
 
-        for mov in currMovements:
-            scaling_factor = int(mov['FFZ_ID'][-1]) * 20 
-            label_text = f"{mov['FFZ_ID']}   {mov['Startknoten']}  ->  {mov['Endknoten']})"
-            label = font.render(label_text, True, (0,0,0))
-            label_rect = label.get_rect(midleft=(50, 700 + scaling_factor))
-            screen.blit(label, label_rect)
+        for i, mov in enumerate(currMovements):
+            # offset = int(mov['FFZ_ID'][-1]) * 20
+            # if mov['VNR'] != 'x':
+            #     text = f"{mov['FFZ_ID']}   {mov['SK']}  ->  {mov['EK']})"
+            # else: text = f"{mov['FFZ_ID']}   waiting at {mov['SK']}"
+            # PyGameWrite(screen, font, text, (50, 700 + offset), 'left')
+            formatedDict = format_dict(mov)
+            text = f"{formatedDict}"
+            PyGameWrite(screen, font, text, (10, 650 + i * 20), 'left')
 
         PyGameDrawCars(screen, font, currMovements, currTimeExtern)
         
