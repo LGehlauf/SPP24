@@ -127,20 +127,18 @@ def calcDistanceRatio(Route):
     cumuDistances = []
     cumuDistances.append(0)
     Sum = 0
-    # get the distances given in Lines 
     for i in range(len(Route) - 1):
         for line in Lines:
             if Route[i] in line['StartEnd'] and Route[i+1] in line['StartEnd']:
                 cumuDistances.append(line['Distance'] + cumuDistances[-1])
                 Sum += line['Distance']
                 break
-    # cumuDistances.pop(0)
     return tuple(distance / Sum for distance in cumuDistances)
     
 
 def viridis_to_rgb(fraction, total):
     value = fraction / total
-    cmap = cm.get_cmap('viridis')
+    cmap = plt.get_cmap('viridis')
     rgb = cmap(value)[:3]
     rgb_255 = tuple(int(x * 255) for x in rgb)
     return rgb_255
@@ -238,21 +236,36 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
     framerate = 60 # fps
-    SimSpeed = 4 # in seconds per minute
+    SimSpeed = 1 # in seconds per minute
     dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
     fontPath = dirPath + '/SourceSans3-Regular.ttf'
     font = pygame.font.Font(fontPath, 14)
-    ExternStartTime = TLF[0]['SZP'] - timedelta(minutes=1)
+    startTime = TLF[0]['SZP'] - timedelta(minutes=1)
+    currTimeExtern = startTime
+    pauseTime = currTimeExtern - currTimeExtern
     currMovements = []
+    # carList = []
+    # for car in cars:
+    #     carList.append(pygame.Rect(100, 100, 20, 20))
+    states = ['unpause', 'pause']
+    state = 0
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+                
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    pause
+                    state += 1
+                    if state == 2: state = 0                        
+                if event.key == pygame.K_UP:
+                    SimSpeed += 0.5
+                    if SimSpeed > 10: SimSpeed = 10
+                if event.key == pygame.K_DOWN:
+                    SimSpeed -= 0.5
+                    if SimSpeed < 0.5: SimSpeed = 0.5
 
 
         screen.fill((255, 255, 255))
@@ -260,13 +273,21 @@ def initPygame(stations:list[dict], cars:set, lines:list[dict], TLF:list[dict]) 
         for bmg in BMGen:
             bmg.draw(screen, font)
 
+        # BAUSTELLE -> pygame time get_ticks gibt kumulierte summe wieder, zeitbetrag wäre aber sehr viel geeigneter!
+
         currTimeIntern = pygame.time.get_ticks() / 1000
-        currTimeExtern = ExternStartTime + timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60
+        if states[state] == 'pause':
+            currTimeExtern = currTimeExtern
+            pauseTime = currTimeExtern - timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60
+        elif states[state] == 'unpause':
+            currTimeExtern = startTime + timedelta(milliseconds=pygame.time.get_ticks()) * SimSpeed * 60 - pauseTime
         fps = clock.get_fps()
 
         PyGameDrawClock(screen, font, currTimeIntern, currTimeExtern, fps)
 
         currMovements = PyGameSampleCurrentMovements(TLF, currTimeExtern, cars, currMovements)
+
+        PyGameWrite(screen, font, f'Simspeed: {SimSpeed}', (10, 500), 'left')
 
         for i, mov in enumerate(currMovements):
             # offset = int(mov['FFZ_ID'][-1]) * 20
