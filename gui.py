@@ -7,6 +7,8 @@ import math
 import os
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from collections import defaultdict
+
 
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
@@ -98,6 +100,33 @@ def PyGameDrawClock(screen, font, clockExtern, fps):
     PyGameWrite(screen, font, text, (600, 600), 'top')
     # text = f"FPS: {round(fps,1)}"
     # PyGameWrite(screen, font, text, (1100, 700), 'left')
+
+def PyGameSampleCurrMovements(TLF, time):
+    currMovements = []
+    for line in TLF:
+        if line['SZP'] <= time and line['EZP'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
+            currMovements.append(line)
+        if line['EZP'] > time:
+            break
+    return currMovements
+
+
+def TLFAddWaits(TLF):
+    splits = defaultdict(list)
+    for line in TLF:
+        splits[line['FFZ_ID']].append(line)
+    a = 0
+
+    for split in list(splits): # split ist nicht das element sondern der key?
+        for i in range(len(split)):
+            # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
+            if i < len(split) and split[i]['EZP'] != split[i+1]['SZP']: 
+                split[i].append({'VNR':'x', 'FFZ_ID':split[i]['FFZ_ID'],
+                                'SK': split[i]['EK'], 'EK': split[i]['EK'],
+                                'SZP': split[i]['EZP'],
+                                'EZP': split[i+1]['SZP']})
+            
+            pass
 
 def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
     for mov in currMovements:
@@ -299,6 +328,13 @@ con = sqlite3.connect('prod_data.db')
 cur = con.cursor()
 
 TLF = getTLF(cur)
+
+modifiedTLF = TLFAddWaits(TLF)
+
+
+
+a =0
+
 
 initPygame(BMGen, Lines, TLF)
 
