@@ -101,32 +101,61 @@ def PyGameDrawClock(screen, font, clockExtern, fps):
     # text = f"FPS: {round(fps,1)}"
     # PyGameWrite(screen, font, text, (1100, 700), 'left')
 
-def PyGameSampleCurrMovements(TLF, time):
-    currMovements = []
+def PyGameSampleCurrMovements(TLF, time, currMovements):
+    for mov in currMovements:
+        if mov['EZP'] < time: 
+            currMovements.remove(mov)
     for line in TLF:
         if line['SZP'] <= time and line['EZP'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
+            line['PyRoute'] = None
+            TLF.remove(line)
             currMovements.append(line)
         if line['EZP'] > time:
             break
     return currMovements
 
 
-def TLFAddWaits(TLF):
+def TLFAddWaits(rawTLF):
+    ###################### workaround error
+    TLF = []
+    for line in rawTLF:
+        if line['VNR'] > 816:
+            TLF.append(line)
+    ###################### workaround error
+
+
     splits = defaultdict(list)
     for line in TLF:
         splits[line['FFZ_ID']].append(line)
+
+    for key in splits: # split ist nicht das element sondern der key?
+        for i in range(len(splits[key]) - 1):
+            thisLine = splits[key][i]
+            nextLine = splits[key][i+1]    
+            # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
+            if thisLine['EZP'] < nextLine['SZP']: 
+                # print(f'{key} waits between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EZP']} to {nextLine['SZP']}')
+                splits[key].append({'VNR':'x', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': thisLine['EK'],
+                                'SZP': thisLine['EZP'],
+                                'EZP': nextLine['SZP']})
+            if thisLine['EZP'] > nextLine['SZP']: # negative Zeit!
+                splits[key].append({'VNR':'negT', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
+                                'SZP': thisLine['EZP'],
+                                'EZP': nextLine['SZP']})                
+            if thisLine['EK'] != nextLine['SK']: # teleport!!
+                # raise AssertionError(f'{key} teleported between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EK']} to {nextLine['SK']}')
+                splits[key].append({'VNR':'t', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
+                                'SZP': thisLine['EZP'],
+                                'EZP': nextLine['SZP']})                
+    combined_list = [item for sublist in splits.values() for item in sublist]
+    sorted_list = sorted(combined_list, key=lambda x: x['SZP'])
     a = 0
 
-    for split in list(splits): # split ist nicht das element sondern der key?
-        for i in range(len(split)):
-            # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
-            if i < len(split) and split[i]['EZP'] != split[i+1]['SZP']: 
-                split[i].append({'VNR':'x', 'FFZ_ID':split[i]['FFZ_ID'],
-                                'SK': split[i]['EK'], 'EK': split[i]['EK'],
-                                'SZP': split[i]['EZP'],
-                                'EZP': split[i+1]['SZP']})
-            
-            pass
+    return sorted_list
+
 
 def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
     for mov in currMovements:
@@ -300,7 +329,7 @@ def initPygame(stations:list[dict], lines:list[dict], TLF:list[dict]) -> None:
         fps = clock.get_fps()
         PyGameDrawClock(screen, font, Time, fps)
 
-        currMovements = PyGameSampleCurrentMovements(TLF, Time, FFZ, currMovements)
+        currMovements = PyGameSampleCurrMovements(TLF, Time, currMovements)
 
         PyGameWrite(screen, font, f'Simulation speed: {SimSpeeds[SimSpeed]}', (10, 500), 'left')
 
@@ -336,6 +365,6 @@ modifiedTLF = TLFAddWaits(TLF)
 a =0
 
 
-initPygame(BMGen, Lines, TLF)
+initPygame(BMGen, Lines, modifiedTLF)
 
 con.close()
