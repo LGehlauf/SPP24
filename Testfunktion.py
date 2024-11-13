@@ -22,6 +22,10 @@ def parse_route(route_string:str) -> list[tuple]:
     matches = re.findall(r"([a-z])", route_string)
     return tuple(matches)
 
+#Wichtige globale Variablen, um unnötige Datenbank-abfragen zu vermeiden:
+globale_arbeitsplaene = None
+globale_auftraege = None
+globale_TLF = None
 
 def getTLF(cursor):
     # Hinterlegung des Graphen:
@@ -41,6 +45,10 @@ def getTLF(cursor):
         'f': 'FTL',
         'g': 'Ladestation'
     }
+    global globale_TLF #definition der GLOBALEN varoaelbe
+
+    if globale_TLF is not None:
+        return globale_TLF
 
     cursor.execute("SELECT * FROM TLF")
     raw = cursor.fetchall()
@@ -61,6 +69,9 @@ def getTLF(cursor):
         Dict['Endknoten'] = knoten_mapping.get(Dict['Endknoten'], 'Unbekannt')
 
         TLF.append(Dict)
+
+        #globale Variable abspeichern:
+        globale_TLF = TLF
     return TLF
 
 
@@ -68,6 +79,11 @@ def getTLF(cursor):
 
 #Arbeitspläne in Dictionary umwandeln:
 def getAP(cursor):
+    global globale_arbeitsplaene
+
+    if globale_arbeitsplaene is not None:
+        return globale_arbeitsplaene
+
     cursor.execute("SELECT * FROM arbeitsplaene")
     raw = cursor.fetchall()
     keys = ['id', 'nr', 'bmg', 'r_plan', 't_plan']
@@ -75,10 +91,17 @@ def getAP(cursor):
     for tupel in raw:
         Dict = dict(zip(keys, tupel))
         arbeitsplaene.append(Dict)
+
+    globale_arbeitsplaene = arbeitsplaene
     return arbeitsplaene
 
 #Auftragstabelle in Dictionary umwandeln:
 def getAuftraege(cursor):
+    global globale_auftraege
+
+    if globale_auftraege is not None:
+        return globale_auftraege
+
     cursor.execute("SELECT * FROM auftraege")
     raw = cursor.fetchall()
     keys = ['charge','id', 'stueckzahl_plan', 'stueckzahl_ist', 'freigabe', 'fertigstellung']
@@ -86,14 +109,15 @@ def getAuftraege(cursor):
     for tupel in raw:
         Dict = dict(zip(keys, tupel))
         auftraege.append(Dict)
+
+    globale_auftraege = auftraege
     return auftraege
 
 ####1. Testfunktion:
 # Prüfen, ob Auftrag genau alle vorgegebenen Stationen aus AP durchläuft
 # Das bezieht sich auf eine Charge
 
-#Nummer einer Charge einem Auftrag zuordnen
-########################
+
 #Chargennummer - ist einfach die Nummer der Charge
 def AuftragsID(cursor, Chargennummer):
     auftrags_daten = getAuftraege(cursor)
@@ -103,7 +127,6 @@ def AuftragsID(cursor, Chargennummer):
             return eintrag['id'] #Hier wird die Auftragsnummer zurückgegeben
     return None
 
-#########################################
 
 #Aus AP die einzelnen Stationen ablesen
 #Wichtig: gleiche Struktur mit Start-und Endknoten!
@@ -143,22 +166,33 @@ def TLF_Schritte(cursor,Chargennummer):
 
 ###DER ULTIMATIVE VERGLEICH
 
+def Vergleich():
+    for eintrag in globale_auftraege:
+        Chargennummer = eintrag['charge']
+        auftrag_id = eintrag['id']  # direkt aus globale_auftraege, falls dort enthalten
 
+        if TLF_Schritte(cursor, Chargennummer) == ArbeitsplanSchritte(cursor, auftrag_id):
+            print('juhuu, die stimmen überein')
+        else:
+            print('hier ist etwas schiefgelaufn')
 
-#Alle Aufträge abrufen!!:
-#Das ist noch sehr ineffizient, weil die DB jedes mal abgefragt wird
-#Das muss ich noch ändern!!!
-auftrags_daten = getAuftraege(cursor)
+if globale_auftraege is not None and globale_TLF is not None and globale_arbeitsplaene is not None:
+    Vergleich()
+    print('ich war hier!!')
+else:
+    for i in range(2):
+        print('programm nochamllll')
+        globale_auftraege = getAuftraege(cursor)
+        globale_TLF = getTLF(cursor)
+        globale_arbeitsplaene = getAP(cursor)
+        Vergleich()
+        print('ich gehe lieber durch else')
 
-for eintrag in auftrags_daten:
-    Chargennummer = eintrag['charge']
-    auftrag_id = AuftragsID(cursor, Chargennummer)
-
-    if TLF_Schritte(cursor, Chargennummer) == ArbeitsplanSchritte(cursor, auftrag_id):
-        print('juhuu, die stimmen überein')
-    else:
-        print('hier ist etwas schiefgelaufne')
-
+#zu tun: Auswertung:
+#woran liegt es, dass es manchmal schief läuft?
+#an welchen Stellen läuft es schief?
+#lädt da das Gerät?
+#vielleicht einfach vektor anzeigen lassen
 
 
 ####2. Testfunktion:
