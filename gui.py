@@ -202,6 +202,11 @@ def viridis_to_rgb(fraction, total):
     rgb_255 = tuple(int(x * 255) for x in rgb)
     return rgb_255
 
+def PyGameDrawChargen(screen, font, currMovements, time):
+    for mov in currMovements:
+        if mov :
+            pass
+
 
 def PyGameDrawCars(screen, font, currMovements, time, FFZ):
     width, height = 16, 16
@@ -227,6 +232,8 @@ def PyGameDrawCars(screen, font, currMovements, time, FFZ):
                     rect = (PosX - width * 0.5, PosY - height * 0.5, width, height)
                     colour = viridis_to_rgb(int(mov['FFZ_ID'][-1]), len(FFZ))
                     Rect = pygame.draw.rect(screen, colour, rect, border_radius=2)
+                    if mov['Charge'] != None: 
+                        pygame.draw.circle(screen, (255,0,0), (PosX, PosY), 5, 5)
                     # offset = int(mov['FFZ_ID'][-1]) * 20 
                     # text = f"trying {mov['FFZ_ID']} [{mov['Route'][i]} -> {mov['Route'][i+1]}]"
                     # PyGameWrite(screen, font, text, (200, 700 + offset), 'left')
@@ -238,7 +245,7 @@ def PyGameDrawCars(screen, font, currMovements, time, FFZ):
 
         else: # current movement is waiting
             offset = int(mov['FFZ_ID'][-1]) * 22
-            WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station+
+            WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
             rect = (WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20, width, height)
             colour = viridis_to_rgb(int(mov['FFZ_ID'][-1]), len(FFZ))
             Rect = pygame.draw.rect(screen, colour, rect, border_radius=2)
@@ -357,6 +364,8 @@ con = sqlite3.connect('prod_data.db')
 cur = con.cursor()
 
 TLF = getTLF(cur)
+FLF = getFLF(cur)
+
 
 modifiedTLF = TLFAddWaits(TLF)
 
