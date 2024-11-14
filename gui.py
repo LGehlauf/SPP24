@@ -12,6 +12,7 @@ from collections import defaultdict
 
 
 # to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
+# fkt mit start und endzeitpunkt -> diagramm
 
 Lines = [   {'StartEnd': ['a', 'c'], 'Distance': 15},
             {'StartEnd': ['a', 'b'], 'Distance': 11},
@@ -95,6 +96,14 @@ def getTLF(cur):
         TLF.append(Dict)
     return TLF
 
+def getFLF(cur):
+    cur.execute("SELECT * FROM FLF")
+    raw = cur.fetchall()
+    #keys = ['Charge', 'BMG', 'Ankunft', 'Start_Ruesten', 'Start_Bearbeitung', 'Ende_Bearbeitung', 'Abtransport', 'Anzahl_Bauteile', 'Ausschuss']
+    keys = ['Ch', 'BMG', 'AZP', 'RZP', 'SB', 'EB', 'Abtransport', 'Anz_Bauteile'] # BAUSTELLE
+    a = 0
+    
+
 def PyGameDrawClock(screen, font, clockExtern, fps):
     text = f"{clockExtern.strftime("%d. %B %Y %H:%M")}"
     PyGameWrite(screen, font, text, (600, 600), 'top')
@@ -116,19 +125,19 @@ def PyGameSampleCurrMovements(TLF, time, currMovements):
 
 
 def TLFAddWaits(rawTLF):
-    ###################### workaround error
-    TLF = []
-    for line in rawTLF:
-        if line['VNR'] > 816:
-            TLF.append(line)
-    ###################### workaround error
+    # ###################### workaround error
+    # TLF = []
+    # for line in rawTLF:
+    #     if line['VNR'] > 816:
+    #         TLF.append(line)
+    # ###################### workaround error
 
 
     splits = defaultdict(list)
     for line in TLF:
         splits[line['FFZ_ID']].append(line)
 
-    for key in splits: # split ist nicht das element sondern der key?
+    for key in splits: # split ist nicht das element sondern der key
         for i in range(len(splits[key]) - 1):
             thisLine = splits[key][i]
             nextLine = splits[key][i+1]    
@@ -156,31 +165,6 @@ def TLFAddWaits(rawTLF):
 
     return sorted_list
 
-
-def PyGameSampleCurrentMovements(TLF, time, cars, currMovements):
-    for mov in currMovements:
-        if mov['EZP'] < time: 
-            currMovements.remove(mov)
-            WaitingEZP_TLF = next((line['SZP'] for line in TLF if mov['FFZ_ID'] == line['FFZ_ID']), datetime.max) # das warten endet sobald der nächste start ist
-            WaitingEZP_CUR = next((line['SZP'] for line in currMovements if mov['FFZ_ID'] == line['FFZ_ID']), datetime.max)
-            WaitingEZP = min(WaitingEZP_CUR, WaitingEZP_TLF)
-            if mov['EZP'] < WaitingEZP and time < WaitingEZP:
-                currMovements.append({'VNR':'x', 'FFZ_ID':mov['FFZ_ID'],
-                            'SK': mov['EK'], 'EK': mov['EK'],
-                            'SZP': mov['EZP'],
-                            'EZP': WaitingEZP})
-    i = 0 # counter of movements, limited to number of cars
-    for line in TLF:
-        if i > len(cars):
-            raise NotImplementedError(f'{i} orders for {len(cars)} cars')
-        if line['SZP'] <= time and line['EZP'] > time: # Start liegt in der Vergangenheit, Ende aber in der Zukunft -> aktuell
-            i += 1
-            line['PyRoute'] = None
-            currMovements.append(line)
-            TLF.remove(line)
-        if line['SZP'] > time:
-            break
-    return currMovements
 
 def calcDistanceRatio(Route):
     cumuDistances = []
