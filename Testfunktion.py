@@ -2,6 +2,10 @@ from datetime import datetime
 import re
 import sqlite3
 
+#todooo: für auswertung nur die betrachten, die freigegeben werden!
+#PLAUSIBILITÄT: AUSWERTEN, wann z.B. letzter Drehenzyklus startet
+#Abgleich mit Simulationszeit machne!!!
+
 
 #Hier erstmal die connection aufbauen
 #cursor!
@@ -23,6 +27,12 @@ def parse_route(route_string:str) -> list[tuple]:
     return tuple(matches)
 
 #Wichtige globale Variablen, um unnötige Datenbank-abfragen zu vermeiden:
+
+###############
+#TLF = getTLF(cursor)
+#So ist es besser verständlich!!!
+####################
+
 globale_arbeitsplaene = None
 globale_auftraege = None
 globale_TLF = None
@@ -117,12 +127,13 @@ def getAuftraege(cursor):
 # Prüfen, ob Auftrag genau alle vorgegebenen Stationen aus AP durchläuft
 # Das bezieht sich auf eine Charge
 
+#PROBLEM: Was ist mit NONE Einträgen bei der Freigabe?!
 
 #Chargennummer - ist einfach die Nummer der Charge
 def AuftragsID(cursor, Chargennummer):
     auftrags_daten = getAuftraege(cursor)
     for eintrag in auftrags_daten:
-        if int(eintrag['charge']) == Chargennummer:
+        if int(eintrag['charge']) == Chargennummer and eintrag['freigabe'] is not None:
             print('Auftrag:', eintrag['id'])
             return eintrag['id'] #Hier wird die Auftragsnummer zurückgegeben
     return None
@@ -152,13 +163,11 @@ def ArbeitsplanSchritte(cursor, auftrag_id):
     return ArbeitsplanTupel if ArbeitsplanTupel else None
 
 
-
-#Diese Funktion nimmer schon die Chargennumer, welche noch geändert werden muss!!!
 def TLF_Schritte(cursor,Chargennummer):
     tlf_daten = getTLF(cursor)
     TLF_Spalten = []
     for eintrag in tlf_daten:
-        if int(eintrag['Charge']) == Chargennummer:
+        if int(eintrag['Charge']) == Chargennummer and eintrag['Startknoten'] is not None and eintrag['Endknoten'] is not None:
             TLF_Spalten.append((eintrag['Startknoten'],eintrag['Endknoten']))
     #print('TLFFFFF', TLF_Spalten)
     return TLF_Spalten if TLF_Spalten else None
@@ -175,6 +184,9 @@ def Vergleich():
             print('juhuu, die stimmen überein')
         else:
             print('hier ist etwas schiefgelaufn')
+            print(Chargennummer)
+            print(TLF_Schritte(cursor,Chargennummer))
+            print(ArbeitsplanSchritte(cursor,auftrag_id))
 
 if globale_auftraege is not None and globale_TLF is not None and globale_arbeitsplaene is not None:
     Vergleich()
@@ -208,5 +220,11 @@ else:
 # Schichtende
 # Werden Aufträge pausiert, wenn Schicht zu Ende geht?
 
+####5. Testfunktion
+# ELF: Wird an einer Maschine was produziert, obwohl Maschine zwischen Start- und Endfehler liegt
+
+####6. Aussschuss:
+# Wird Ausschussteil trotzdem bei Bestand hinzugefügt?
+# auftraege: stueckzahl_ist = stueckzahl_plan - FLF.ausschuss!!!!
 #Schließen
 conn.close()
