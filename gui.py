@@ -60,20 +60,33 @@ class BMG:
 
 
 
-RTL = BMG('RTL', 'a', (100, 300), 'Rohteillager', Lager=True)
-SAE = BMG('SAE', 'b', (500, 300), 'Sägen')
-DRH = BMG('DRH', 'c', (500, 100), 'Drehen')
-FRA = BMG('FRA', 'd', (500, 500), 'Fräsen')
-QPR = BMG('QPR', 'e', (900, 300), 'Qualitätsprüfung')
-FTL = BMG('FTL', 'f', (1300, 300), 'Fertigteillager', Lager=True)
-LFF = BMG('LFF', 'g', (900, 100), 'Ladestation FFZ', Lager=True)
+# RTL = BMG('RTL', 'a', (100, 300), 'Rohteillager', Lager=True)
+# SAE = BMG('SAE', 'b', (500, 300), 'Sägen')
+# DRH = BMG('DRH', 'c', (500, 100), 'Drehen')
+# FRA = BMG('FRA', 'd', (500, 500), 'Fräsen')
+# QPR = BMG('QPR', 'e', (900, 300), 'Qualitätsprüfung')
+# FTL = BMG('FTL', 'f', (1300, 300), 'Fertigteillager', Lager=True)
+# LFF = BMG('LFF', 'g', (900, 100), 'Ladestation FFZ', Lager=True)
 
-BMGen = [RTL, SAE, DRH, FRA, QPR, FTL, LFF]
+# BMGen = [RTL, SAE, DRH, FRA, QPR, FTL, LFF]
+
+BMGen = [
+    BMG('RTL', 'a', (100, 300), 'Rohteillager', Lager=True),
+    BMG('SAE', 'b', (500, 300), 'Sägen'),
+    BMG('DRH', 'c', (500, 100), 'Drehen'),
+    BMG('FRA', 'd', (500, 500), 'Fräsen'),
+    BMG('QPR', 'e', (900, 300), 'Qualitätsprüfung'),
+    BMG('FTL', 'f', (1300, 300), 'Fertigteillager', Lager=True),
+    BMG('LFF', 'g', (900, 100), 'Ladestation FFZ', Lager=True)
+]
+
 
 def parse_datetime(datums_string:str):
     for format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
         try:
             return datetime.strptime(datums_string, format)
+        except TypeError:
+            return None
         except ValueError:
             continue
     raise ValueError(f"Datumsformat von '{datums_string}' ist unbekannt")
@@ -100,8 +113,22 @@ def getFLF(cur):
     cur.execute("SELECT * FROM FLF")
     raw = cur.fetchall()
     #keys = ['Charge', 'BMG', 'Ankunft', 'Start_Ruesten', 'Start_Bearbeitung', 'Ende_Bearbeitung', 'Abtransport', 'Anzahl_Bauteile', 'Ausschuss']
-    keys = ['Ch', 'BMG', 'AZP', 'RZP', 'SB', 'EB', 'Abtransport', 'Anz_Bauteile'] # BAUSTELLE
-    a = 0
+    keys = ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP', 'Anz_Bauteile', 'Ausschuss'] # BAUSTELLE
+    FLF = []
+    for tupel in raw:
+        Dict = dict(zip(keys, tupel))
+        for key in ['AnZP', 'RZP', 'SB', 'EB', 'AbZP']:
+            #try:
+            Dict[key] = parse_datetime(Dict[key])
+            # except:
+            #     pass
+        # Dict['AnZP'] = parse_datetime(Dict['AnZP'])
+        # Dict['RZP'] = parse_datetime(Dict['RZP'])
+        # Dict['SB'] = parse_datetime(Dict['SB'])
+        # Dict['EB'] = parse_datetime(Dict['EB'])
+        # Dict['AbZP'] = parse_datetime(Dict['AbZP'])
+        FLF.append(Dict)
+    return FLF
     
 
 def PyGameDrawClock(screen, font, clockExtern, fps):
@@ -131,7 +158,6 @@ def TLFAddWaits(rawTLF):
     #     if line['VNR'] > 816:
     #         TLF.append(line)
     # ###################### workaround error
-
 
     splits = defaultdict(list)
     for line in TLF:
@@ -352,6 +378,7 @@ FLF = getFLF(cur)
 
 
 modifiedTLF = TLFAddWaits(TLF)
+
 
 
 
