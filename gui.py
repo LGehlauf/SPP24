@@ -25,6 +25,14 @@ Lines = [   {'StartEnd': ['a', 'c'], 'Distance': 15},
             {'StartEnd': ['e', 'f'], 'Distance': 14}
 ]
 
+class FFZ:
+    def __init__(self, screen, font, FFZ_ID, FFZ_count, Size=(16,16)):
+        self.FFZ_ID = FFZ_ID
+        self.colour = viridis_to_rgb(int(FFZ_ID[-1]), FFZ_count)
+        self.Size = Size
+        rect = (0, 0, *Size)
+        self.CarRect = pygame.draw.rect(screen, self.colour, rect, border_radius=2)
+
 class BMG:
     def __init__(self, ShortName, Abbreviation, Pos, LongName, Size=(50,50), Lager=False):
         self.ShortName = ShortName
@@ -284,7 +292,7 @@ def CalcPyRouteVariables(mov):
     mov['CheckpointTimes'] = checkpointTimes
         
 
-def PyGameDrawCars(screen, font, currMovements, time, FFZ):
+def PyGameDrawCarsBackup(screen, font, currMovements, time, FFZ):
     width, height = 16, 16
     for mov in currMovements:
         if mov['VNR'] != 'x':
@@ -304,11 +312,8 @@ def PyGameDrawCars(screen, font, currMovements, time, FFZ):
                     CarRect = pygame.draw.rect(screen, colour, rect, border_radius=2)
                     if mov['Charge'] != None: 
                         pygame.draw.circle(screen, (255,0,0), (PosX, PosY), 5, 5)
-                    # offset = int(mov['FFZ_ID'][-1]) * 20 
-                    # text = f"trying {mov['FFZ_ID']} [{mov['Route'][i]} -> {mov['Route'][i+1]}]"
-                    # PyGameWrite(screen, font, text, (200, 700 + offset), 'left')
                     try:
-                        text = f"{mov['FFZ_ID']} -> {mov['EK']}"
+                        text = f"{mov['FFZ_ID']}"
                         PyGameWrite(screen, font, text, CarRect.midtop, 'bottom')
                     except:
                         pass
@@ -320,6 +325,42 @@ def PyGameDrawCars(screen, font, currMovements, time, FFZ):
             colour = viridis_to_rgb(int(mov['FFZ_ID'][-1]), len(FFZ))
             Rect = pygame.draw.rect(screen, colour, rect, border_radius=2)
 
+def PyGameDrawCars(screen, font, currMovements, time):
+    for mov in currMovements:
+        ffz = next((ffz for ffz in FFZs if ffz.FFZ_ID == mov['FFZ_ID']), None)
+        if mov['VNR'] != 'x':
+            if mov['PyRoute'] == None: # only executed once per movement
+                CalcPyRouteVariables(mov)
+                
+            for i in range(len(mov['Route']) - 1):
+                # welche strecke muss genau jetzt animiert werden? Dafür gibt es die CheckpointTimes
+                if time > mov['CheckpointTimes'][i] and time < mov['CheckpointTimes'][i+1]:
+                    DistanceX = mov['PyRoute'][i][1][0] - mov['PyRoute'][i][0][0]
+                    DistanceY = mov['PyRoute'][i][1][1] - mov['PyRoute'][i][0][1]
+                    TimeRatio = (time - mov['CheckpointTimes'][i]) / (mov['CheckpointTimes'][i+1] - mov['CheckpointTimes'][i])
+                    PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
+                    PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
+                    ffz.CarRect.center=(PosX, PosY)
+                    pygame.draw.rect(screen, ffz.colour, ffz.CarRect, border_radius=1)
+                    if mov['Charge'] != None: 
+                        pygame.draw.circle(screen, ffz.colour, ffz.CarRect.center, 5, 5)
+                    try:
+                        text = f"{mov['FFZ_ID']}"
+                        PyGameWrite(screen, font, text, ffz.CarRect.midtop, 'bottom')
+                    except:
+                        pass
+
+        else: # current movement is waiting
+            offset = int(mov['FFZ_ID'][-1]) * 22
+            WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
+            ffz.CarRect.center=(WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20)
+            pygame.draw.rect(screen, ffz.colour, ffz.CarRect, border_radius=1)
+            try:
+                text = f"{mov['FFZ_ID']}"
+                PyGameWrite(screen, font, text, ffz.CarRect.midtop, 'bottom')
+            except:
+                pass
+            
 def PyGameWrite(screen, font, text, Pos, LRTD):
     label = font.render(text, True, (0,0,0))
     if (LRTD == 'left'): label_rect = label.get_rect(midleft=Pos)
@@ -328,8 +369,8 @@ def PyGameWrite(screen, font, text, Pos, LRTD):
     if (LRTD == 'bottom'): label_rect = label.get_rect(midbottom=Pos)
     screen.blit(label, label_rect)
 
-def initPygame(stations:list[dict], lines:list[dict], TLF:list[dict], FLF:list[dict]) -> None:
-    FFZ = {row['FFZ_ID'] for row in TLF} # set of used FFZ
+def initPygame():
+    #FFZ = {row['FFZ_ID'] for row in TLF} # set of used FFZ
     pygame.init()
     screen = pygame.display.set_mode((1400, 800))
     clock = pygame.time.Clock()
@@ -337,17 +378,24 @@ def initPygame(stations:list[dict], lines:list[dict], TLF:list[dict], FLF:list[d
     dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
     fontPath = dirPath + '/SourceSans3-Regular.ttf'
     font = pygame.font.Font(fontPath, 14)
-    fontsmall =pygame.font.Font(fontPath, 10)
-    
+    smallfont =pygame.font.Font(fontPath, 10)
+
+    FFZ_set = {row['FFZ_ID'] for row in TLF} # set of used FFZ
+    global FFZs
+    FFZs = []
+    for ffz in FFZ_set:
+        FFZs.append(FFZ(screen, font, ffz, len(FFZ_set)))
+
     Time = TLF[0]['SZP'] - timedelta(minutes=1)
     passedTime = 0
-
-    currMovements = []
     states = ['unpause', 'pause']
     state = 0
     SimSpeeds = [-32, -16, -8, -4, -2, -1, -0.5, 0.5, 1, 2, 4, 8, 16, 32]
     SimSpeed = 8
-    
+    mainloopPygame(screen, font, smallfont, clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, states, state)
+
+
+def mainloopPygame(screen, font, smallfont, clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, states, state):
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -379,7 +427,7 @@ def initPygame(stations:list[dict], lines:list[dict], TLF:list[dict], FLF:list[d
         fps = clock.get_fps()
         PyGameDrawClock(screen, font, Time, fps)
 
-        currMovements = SampleCurrMovements(TLF, Time)
+        currMovements = SampleCurrMovements(modifiedTLF, Time)
         currChargen = SampleCurrChargen(FLF, Time)
 
         PyGameWrite(screen, font, f'Simulation speed: {SimSpeeds[SimSpeed]}', (10, 500), 'left')
@@ -411,12 +459,12 @@ def initPygame(stations:list[dict], lines:list[dict], TLF:list[dict], FLF:list[d
                 if key in ['Ch', 'BMG', 'AnZP', 'SB', 'EB', 'AbZP']:
                     if value != None and key in ['AnZP', 'SB', 'EB', 'AbZP']:
                         val = value.strftime('%H:%M')
-                        PyGameWrite(screen, fontsmall, str(val), (500 + (i % 7) * 50, 670 + j * 15), 'left')   
-                    else: PyGameWrite(screen, fontsmall, str(value), (500 + (i % 7)* 50, 670 + j * 15), 'left')
+                        PyGameWrite(screen, smallfont, str(val), (500 + (i % 7) * 50, 670 + j * 15), 'left')   
+                    else: PyGameWrite(screen, smallfont, str(value), (500 + (i % 7)* 50, 670 + j * 15), 'left')
                     i += 1
         
 
-        PyGameDrawCars(screen, font, currMovements, Time, FFZ)
+        PyGameDrawCars(screen, font, currMovements, Time)
         PyGameDrawChargen(screen, font, currChargen, Time)
         
         pygame.display.flip()
@@ -431,9 +479,10 @@ modifiedTLF = TLFAddWaits(TLF)
 
 FLF = getFLF(cur)
 
+
 a =0
 
 
-initPygame(BMGen, Lines, modifiedTLF, FLF)
+initPygame()
 
 con.close()
