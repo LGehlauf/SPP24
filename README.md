@@ -26,4 +26,12 @@ Notes für Jasper und Leo
     - Wird an einer Maschine produziert, während sie aufgrund eines Ausfalls gewartet wird?
     - Erhöht sich der Bestand im FTL jeweils nur um die tatsächlich produzierten Bauteile (also wird der Ausschuss beachtet?)
 
-
+# 15.11.2024 Karl Marbach
+- Simulationen beginnen für eine bessere Interpretation der Ergebnisse ab sofort immer am 01.01.2024 00:00 und am enden am 01.02.2024 00:00
+- Hinsichtlich des Lagerabgangs aus dem Fertigteillager habe ich mich jetzt auch am RPE-Beleg orientiert, d.h.:
+    - Jeden Tag wird eine Stückzahl für die tägliche Produktion des Pneumatischen Drehantriebs aus einer Normalverteilung gezogen
+    - Die einzelnen Bauteile werden gemäß Stückliste und Bedarf (gezogene Tagesstückzahl)
+    über den Tag verteilt aus dem Fertigteillager entnommen 
+- Perspektivisches Ziel: 
+    - Es wäre gut, wenn man den Zustand der Simulation speichern könnte, um diesen einer weiteren Simulation als Input zu übergeben 
+    - Mit dieser Funktionalität wäre es dann auch möglich der Simulation für einen beliebigen Zeitpunkt eine Liste zusätzlicher Aufträge zu übergeben und anschließend Aussagen über den Einfluss einer Annahme dieser Aufträge auf die logistischen Zielgrößen zu tätitgen 
