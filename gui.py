@@ -83,19 +83,34 @@ class BMG:
             pygame.draw.circle(screen, ch.colour, 
                                (self.preRect.topright[0] - 12 - 12 * (xOff % 4),
                                 self.preRect.topright[1] + 12 + 12 * yOff), radius=5)
-        for yOff, ch in enumerate(self.BQ):
-            if 'DRH1' in self.ShortNames:
-                pygame.draw.circle(screen, ch.colour,
-                                (self.mainRect.centerx, 
-                                    self.mainRect.centery - 6 + 12 * yOff), radius=5)
-            else:
-                charge = ch[0]   
-                frac = ch[1]
-                colour = ampel_to_rgb(frac)
-                rect = (self.mainRect.topleft[0]+2, self.mainRect.topleft[1] + 10, frac*(self.mainRect.width-4), 10)
-                pygame.draw.rect(screen, colour, rect, border_radius=2)
-                pygame.draw.circle(screen, charge.colour,
-                                   (self.mainRect.centerx, self.mainRect.centery + 5), 5)
+        # for yOff, ch in enumerate(self.BQ):
+        #     if 'DRH1' in self.ShortNames:
+        #         pygame.draw.circle(screen, ch.colour,
+        #                         (self.mainRect.centerx, 
+        #                             self.mainRect.centery - 6 + 12 * yOff), radius=5)
+        #     else:
+        #         charge = ch[0]   
+        #         frac = ch[1]
+        #         colour = ampel_to_rgb(frac)
+        #         rect = (self.mainRect.topleft[0]+2, self.mainRect.topleft[1] + 10, frac*(self.mainRect.width-4), 10)
+        #         pygame.draw.rect(screen, colour, rect, border_radius=2)
+        #         pygame.draw.circle(screen, charge.colour,
+        #                            (self.mainRect.centerx, self.mainRect.centery + 5), 5)
+        for yOff, tuple in enumerate(self.BQ):
+            a = re.search(r'(\d+)', tuple[0])
+            if re.search(r'(\d+)', tuple[0]) != None:
+                yOffset = int(re.search(r'(\d+)', tuple[0]).group(0)) - 1
+            else: yOffset = 0
+            charge = tuple[1]
+            frac = tuple[2]
+            colour = ampel_to_rgb(frac)
+            rect = (self.mainRect.topleft[0]+2, self.mainRect.topleft[1] + 10 + 30 * yOffset, frac * (self.mainRect.width-4), 10)
+            pygame.draw.rect(screen, colour, rect, border_radius=2) 
+            pygame.draw.circle(screen, charge.colour,
+                                (self.mainRect.centerx, self.mainRect.centery + 5 + 30 * yOffset), 5)
+
+        for ch in self.RZPQ:
+            pygame.draw.circle(screen, (0,0,0), (self.preRect.topright[0] - 12, self.preRect.topright[1] + 12), radius=5, width=2)
         
         for xOff, ch in enumerate(self.AbQ):
             yOff = xOff // 4
@@ -146,6 +161,40 @@ def getTLF(cur):
         TLF.append(Dict)
     return TLF
 
+def TLFAddWaits(rawTLF):
+    splits = defaultdict(list)
+    for line in TLF:
+        line['PyRoute'] = None # important for calculation of Routes 
+        splits[line['FFZ_ID']].append(line)
+
+    for key in splits: # split ist nicht das element sondern der key
+        for i in range(len(splits[key]) - 1):
+            thisLine = splits[key][i]
+            nextLine = splits[key][i+1]    
+            # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
+            if thisLine['EZP'] < nextLine['SZP']: 
+                # print(f'{key} waits between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EZP']} to {nextLine['SZP']}')
+                splits[key].append({'VNR':'x', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': thisLine['EK'],
+                                'SZP': thisLine['EZP'], 'EZP': nextLine['SZP'],
+                                'Akkustand': thisLine['Akkustand']})
+            if thisLine['EZP'] > nextLine['SZP']: # negative Zeit!
+                splits[key].append({'VNR':'negT', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
+                                'SZP': thisLine['EZP'], 'EZP': nextLine['SZP'],
+                                'Akkustand': thisLine['Akkustand']})                
+            if thisLine['EK'] != nextLine['SK']: # teleport!!
+                # raise AssertionError(f'{key} teleported between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EK']} to {nextLine['SK']}')
+                splits[key].append({'VNR':'t', 'FFZ_ID':thisLine['FFZ_ID'],
+                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
+                                'SZP': thisLine['EZP'], 'EZP': nextLine['SZP'],
+                                'Akkustand': thisLine['Akkustand']})                
+    combined_list = [item for sublist in splits.values() for item in sublist]
+    sorted_list = sorted(combined_list, key=lambda x: x['SZP'])
+    a = 0
+
+    return sorted_list
+
 def getFLF(cur):
     cur.execute("SELECT * FROM FLF")
     raw = cur.fetchall()
@@ -182,40 +231,6 @@ def SampleCurrChargen(FLF, time):
     ]
     return cC
 
-def TLFAddWaits(rawTLF):
-    splits = defaultdict(list)
-    for line in TLF:
-        line['PyRoute'] = None # important for calculation of Routes 
-        splits[line['FFZ_ID']].append(line)
-
-    for key in splits: # split ist nicht das element sondern der key
-        for i in range(len(splits[key]) - 1):
-            thisLine = splits[key][i]
-            nextLine = splits[key][i+1]    
-            # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
-            if thisLine['EZP'] < nextLine['SZP']: 
-                # print(f'{key} waits between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EZP']} to {nextLine['SZP']}')
-                splits[key].append({'VNR':'x', 'FFZ_ID':thisLine['FFZ_ID'],
-                                'SK': thisLine['EK'], 'EK': thisLine['EK'],
-                                'SZP': thisLine['EZP'],
-                                'EZP': nextLine['SZP']})
-            if thisLine['EZP'] > nextLine['SZP']: # negative Zeit!
-                splits[key].append({'VNR':'negT', 'FFZ_ID':thisLine['FFZ_ID'],
-                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
-                                'SZP': thisLine['EZP'],
-                                'EZP': nextLine['SZP']})                
-            if thisLine['EK'] != nextLine['SK']: # teleport!!
-                # raise AssertionError(f'{key} teleported between {thisLine['VNR']} and {nextLine['VNR']} from {thisLine['EK']} to {nextLine['SK']}')
-                splits[key].append({'VNR':'t', 'FFZ_ID':thisLine['FFZ_ID'],
-                                'SK': thisLine['EK'], 'EK': nextLine['SK'],
-                                'SZP': thisLine['EZP'],
-                                'EZP': nextLine['SZP']})                
-    combined_list = [item for sublist in splits.values() for item in sublist]
-    sorted_list = sorted(combined_list, key=lambda x: x['SZP'])
-    a = 0
-
-    return sorted_list
-
 def viridis_to_rgb(fraction):
     cmap = plt.get_cmap('viridis')
     rgb = cmap(fraction)[:3]
@@ -236,15 +251,16 @@ def PyGameDrawChargen(screen, font, currChargen, time):
             bmg.LagerQ.append(ch)
         elif Ch['AnZP'] <= time and time < Ch['SB']:
             bmg.AnQ.append(ch)
-        elif Ch['RZP'] <= time and time < Ch['SB']:
-            bmg.RZPQ.append(ch)
-             
+            if Ch['RZP'] <= time and time < Ch['SB']:
+                bmg.RZPQ.append(ch)     
         elif Ch['SB'] <= time and time < Ch['EB']:    # BAUSTELLE
-            if Ch['BMG'] in ['DRH1', 'DRH2']:
-                bmg.BQ.append(ch)
-            else:
-                DurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
-                bmg.BQ.append((ch, DurrRatio))
+            # if Ch['BMG'] in ['DRH1', 'DRH2']:
+            #     bmg.BQ.append(ch)
+            # else:
+            #     DurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
+            #     bmg.BQ.append((ch, DurrRatio))
+            DurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
+            bmg.BQ.append((Ch['BMG'], ch, DurrRatio))
         elif Ch['EB'] <= time and time < Ch['AbZP']:
             bmg.AbQ.append(ch)
             
@@ -317,8 +333,6 @@ def PyGameDrawCars(screen, font, currMovements, time):
                     PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
                     PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
                     ffz.CarRect.center=(PosX, PosY)
-                    # pygame.draw.rect(screen, (200,200,200), ffz.CarRect, border_radius=2)
-                    pygame.draw.rect(screen, ffz.colour, ffz.CarRect, border_radius=2, width=2)
                     if mov['Charge'] != None:
                         chColour = next((ch.colour for ch in Chargen if ch.charge_ID == mov['Charge']))
                         pygame.draw.circle(screen, chColour, ffz.CarRect.center, 5)
@@ -332,13 +346,22 @@ def PyGameDrawCars(screen, font, currMovements, time):
             offset = int(mov['FFZ_ID'][-1]) * 22
             WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
             ffz.CarRect.center=(WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20)
-            # pygame.draw.rect(screen, (200,200,200), ffz.CarRect, border_radius=2)
-            pygame.draw.rect(screen, ffz.colour, ffz.CarRect, border_radius=2, width=2)
             try:
                 text = f"{mov['FFZ_ID']}"
                 PyGameWrite(screen, font, text, ffz.CarRect.midtop, 'bottom')
             except:
                 pass
+        
+        pygame.draw.rect(screen, ffz.colour, ffz.CarRect, width=2, border_top_left_radius=2, border_top_right_radius=2)
+        pygame.draw.rect(screen, (0,0,0), (ffz.CarRect.bottomleft[0], 
+                                        ffz.CarRect.bottomleft[1] + 2, 
+                                        ffz.CarRect.width,
+                                        5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
+        pygame.draw.rect(screen, ampel_to_rgb(mov['Akkustand']),(ffz.CarRect.bottomleft[0], 
+                                        ffz.CarRect.bottomleft[1] + 2, 
+                                        ffz.CarRect.width * mov['Akkustand'],
+                                        5), border_bottom_left_radius=2, border_bottom_right_radius=2)
+                    
             
 def PyGameWrite(screen, font, text, Pos, LRTD):
     label = font.render(text, True, (0,0,0))
