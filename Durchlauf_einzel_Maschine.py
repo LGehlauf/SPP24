@@ -75,13 +75,13 @@ for maschine in maschinen:
     kumulierte_zugang_interp = np.interp(gemeinsame_x, zugang_stunden, kumulierte_zugang)
     kumulierte_abgang_interp = np.interp(gemeinsame_x, abgang_stunden, kumulierte_abgang)
 
-
-
-    print(ankunft_liste)
+    #Debugging Ausgaben
+    
+    #print(ankunft_liste)
     #print(fertigstellung_liste)
-    print (start_datum)
-    print(kumulierte_zugang)
-    print(zugang_stunden)
+    #print (start_datum)
+    #print(kumulierte_zugang)
+    #print(zugang_stunden)
     #print(kumulierte_abgang)
     #print(kumulierte_abgang_interp)
     #print(kumulierte_zugang_interp)
