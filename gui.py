@@ -47,7 +47,7 @@ class FFZ:
         self.CarRect = pygame.draw.rect(screen, self.colour, rect, border_radius=2)
 
 class BMG:
-    def __init__(self, ShortNames, Abbreviation, Pos, LongName, Size=(50,50), Lager=False):
+    def __init__(self, ShortNames, Abbreviation, Pos, LongName, Size=(60,60), Lager=False):
         self.ShortNames = ShortNames
         self.Abbreviation = Abbreviation
         self.LongName = LongName
@@ -63,7 +63,7 @@ class BMG:
         self.mains = []
         for i in range(len(self.ShortNames)):
             self.mains.append((self.Pos[0] - 0.5 * self.Size[0], self.Pos[1] - 0.5 * self.Size[1] + i * (1 / len(self.ShortNames) * self.Size[1]), self.Size[0], 1 / len(self.ShortNames) * self.Size[1] ))
-        self.pre = (self.mains[0][0] - 1.2 * self.mains[0][2], self.mains[0][1] + 8, 1.2 * self.mains[0][2], self.Size[1] - 16)
+        self.pre = (self.mains[0][0] - 1.2 * self.mains[0][2], self.mains[0][1] + 4, 1.2 * self.mains[0][2], self.Size[1] - 8)
         self.post = (self.mains[0][0] + self.mains[0][2], self.pre[1], self.pre[2], self.pre[3])
             
         self.wrapper = (self.pre[0] - 10, self.mains[0][1] - 32, self.pre[2] + self.mains[0][2] + self.post[2] + 20, self.Size[1] + 80)
@@ -89,13 +89,19 @@ class BMG:
         # label = font.render(qText, True, (0,0,0))
         # label_rect = label.get_rect(center=(self.Pos[0], self.Pos[1]))
         # screen.blit(label, label_rect)
-
-        for xOff, ch in enumerate(self.AnQ):
-            yOff = xOff // 3
-            Pos = (self.preRect.topright[0] - 9 - 15 * (xOff % 3),
-                    self.preRect.topright[1] + 9 + 15 * yOff)
-            ch.Pos = Pos
+        if len(self.AnQ) > 0:
+            xPos, yPos = self.preRect.topright[0] - 2 - self.AnQ[0].radius, self.preRect.topright[1] + 2 + self.AnQ[0].radius
+        for i, ch in enumerate(self.AnQ):
+            # yOff = xOff // 3
+            # Pos = (self.preRect.topright[0] - self.preRect.width/6 - (self.preRect.width) / 3 * (xOff % 3), 
+            #         self.preRect.topright[1] + self.preRect.height/4 + (self.preRect.height) / 2 * yOff)
+            # ch.Pos = Pos
+            if xPos - 2 - ch.radius < self.preRect.topleft[0]:
+                xPos = self.preRect.topright[0] - 2 - ch.radius
+                yPos += (2 + ch.radius) * 2
+            ch.Pos = (xPos, yPos)
             ch.drawSelf()
+            xPos -= (2 + ch.radius) * 2
 
         for tuple in self.RZPQ:
             if re.search(r'(\d+)', tuple[0]) != None:
@@ -121,10 +127,12 @@ class BMG:
             pygame.draw.circle(screen, charge.colour, (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7), 5)
 
         for xOff, ch in enumerate(self.AbQ):
-            yOff = xOff // 4
-            pygame.draw.circle(screen, ch.colour,
-                               (self.postRect.topright[0] - 12 - 12 * (xOff % 4), 
-                                self.postRect.topright[1] + 12 + 12 * yOff), radius=5)
+            yOff = xOff // 3
+            Pos = (self.postRect.topleft[0] + self.postRect.width/6 + (self.postRect.width) / 3 * (xOff % 3), 
+                    self.postRect.topleft[1] + self.postRect.height/4 + (self.postRect.height) / 2 * yOff)
+            ch.Pos = Pos
+            ch.drawSelf()
+
         for xOff, ch in enumerate(self.LagerQ):
             yOff = xOff // 15
             pygame.draw.circle(screen, ch.colour,
@@ -357,6 +365,7 @@ def PyGameDrawCars(currMovements, time):
                 PyGameWrite(text, ffz.CarRect.midtop, 'bottom')
             except:
                 pass
+        
         Akku = mov['lAkku'] + (mov['nAkku'] - mov['lAkku']) * TimeRatio
         pygame.draw.rect(screen, ffz.colour, ffz.CarRect, width=2, border_top_left_radius=2, border_top_right_radius=2)
         pygame.draw.rect(screen, (0,0,0), (ffz.CarRect.bottomleft[0], 
