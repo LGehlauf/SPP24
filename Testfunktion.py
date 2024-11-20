@@ -36,6 +36,7 @@ def parse_route(route_string:str) -> list[tuple]:
 globale_arbeitsplaene = None
 globale_auftraege = None
 globale_TLF = None
+globale_FLF = None
 
 def getTLF(cursor):
     # Hinterlegung des Graphen:
@@ -53,7 +54,8 @@ def getTLF(cursor):
         'd': 'FRA',
         'e': 'QPR',
         'f': 'FTL',
-        'g': 'Ladestation'
+        'g': 'Ladestation',
+        'h':'HAE'
     }
     global globale_TLF #definition der GLOBALEN varoaelbe
 
@@ -86,6 +88,36 @@ def getTLF(cursor):
 
 
 #######
+
+#GET FLF!!!
+
+def getFLF(cursor):
+    global globale_FLF
+
+    if globale_FLF is not None:
+        return globale_FLF
+
+    cursor.execute("SELECT * FROM FLF")
+    raw = cursor.fetchall()
+
+    keys = ['ankunft', 'start_ruesten', 'start_bearbeitung', 'ende_bearbeitung', 'abtransport', 'anzahl_bauteile', 'ausschuss']
+
+    FLF = []
+    for tupel in raw:
+        Dict = dict(zip(keys, tupel))
+
+        relevante_daten = {
+            'Charge': int(Dict['ankunft']) if Dict['ankunft'] is not None else 0,
+            'anzahl_bauteile': int(Dict['anzahl_bauteile']) if Dict['anzahl_bauteile'] is not None else 0,
+            'ausschuss': int(Dict['ausschuss']) if Dict['ausschuss'] is not None else 0
+        }
+
+        FLF.append(relevante_daten)
+
+    # Globale Variable speichern
+    globale_FLF = FLF
+    return FLF
+
 
 #Arbeitspläne in Dictionary umwandeln:
 def getAP(cursor):
@@ -170,7 +202,7 @@ def TLF_Schritte(cursor,Chargennummer):
         if int(eintrag['Charge']) == Chargennummer and eintrag['Startknoten'] is not None and eintrag['Endknoten'] is not None:
             TLF_Spalten.append((eintrag['Startknoten'],eintrag['Endknoten']))
     #print('TLFFFFF', TLF_Spalten)
-    return TLF_Spalten if TLF_Spalten else None
+    return TLF_Spalten if TLF_Spalten else ['Simulation erst beenden']
 
 
 ###DER ULTIMATIVE VERGLEICH
@@ -184,9 +216,9 @@ def Vergleich():
             print('juhuu, die stimmen überein')
         else:
             print('hier ist etwas schiefgelaufn')
-            print(Chargennummer)
-            print(TLF_Schritte(cursor,Chargennummer))
-            print(ArbeitsplanSchritte(cursor,auftrag_id))
+            #print(Chargennummer)
+            #print(TLF_Schritte(cursor,Chargennummer))
+            #print(ArbeitsplanSchritte(cursor,auftrag_id))
 
 if globale_auftraege is not None and globale_TLF is not None and globale_arbeitsplaene is not None:
     Vergleich()
@@ -197,14 +229,10 @@ else:
         globale_auftraege = getAuftraege(cursor)
         globale_TLF = getTLF(cursor)
         globale_arbeitsplaene = getAP(cursor)
-        Vergleich()
-        print('ich gehe lieber durch else')
+        if globale_TLF is not None:
+            #Vergleich()
+            print('ich gehe lieber durch else')
 
-#zu tun: Auswertung:
-#woran liegt es, dass es manchmal schief läuft?
-#an welchen Stellen läuft es schief?
-#lädt da das Gerät?
-#vielleicht einfach vektor anzeigen lassen
 
 
 ####2. Testfunktion:
@@ -215,6 +243,30 @@ else:
 # Bestandserhöhung
 # Werden nach erfolgreicher Produktion auch Bestände wirklich erhöt?
 # Zusatz: Vermeidung von negativen Beständen (oder Warnung, falls das passiert)
+
+#Aufträge.stueckzahl_plan - FLF.ausschuss = FLF.anzahl_bauteile
+
+def Testfunktion3():
+    # Aufträge und FLF-Daten abrufen
+    auftrags_daten = getAuftraege(cursor)
+    flf_daten = getFLF(cursor)  # Stelle sicher, dass getFLF die FLF-Daten korrekt liefert
+
+    # Überprüfung, ob für jede Charge die Bedingung zutrifft
+    for eintrag in auftrags_daten:
+        for flf in flf_daten:
+            if eintrag['charge'] == flf['Charge']:  # Überprüfen, ob die Charge übereinstimmt
+                stueckzahl_plan = eintrag['stueckzahl_plan']
+                ausschuss = flf['ausschuss']
+                anzahl_bauteile = flf['anzahl_bauteile']
+
+                # Vergleich der Stückzahl nach Ausschuss mit der Anzahl der Bauteile
+                if stueckzahl_plan - ausschuss == anzahl_bauteile:
+                    print(f"Charge {eintrag['charge']}: Stückzahl Plan ({stueckzahl_plan}) - Ausschuss ({ausschuss}) = Bauteile ({anzahl_bauteile}) - Übereinstimmung!")
+                else:
+                    print(f"Charge {eintrag['charge']}: Stückzahl Plan ({stueckzahl_plan}) - Ausschuss ({ausschuss}) != Bauteile ({anzahl_bauteile}) - Keine Übereinstimmung!")
+
+
+Testfunktion3()
 
 ####4. Testfunktion:
 # Schichtende
