@@ -39,12 +39,34 @@ class Charge:
 
 
 class FFZ:
-    def __init__(self, FFZ_ID, ColID, Size=(16,16)):
+    def __init__(self, FFZ_ID, ColID, Akku, Size=(22,22)):
         self.FFZ_ID = FFZ_ID
         self.colour = viridis_to_rgb(ColID)
+        self.Akku = Akku
         self.size = Size
         rect = (0, 0, *Size)
         self.CarRect = pygame.draw.rect(screen, self.colour, rect, border_radius=2)
+    def drawSelf(self):
+        # legend rect # position is of #BAUSTELLE
+        PyGameWrite(f'{self.FFZ_ID}', (1000, int(self.FFZ_ID[-1])*20+700), 'left', size="normal")
+        pygame.draw.rect(screen, self.colour, (1020, int(self.FFZ_ID[-1])*20+700, self.CarRect.width, self.CarRect.height), width=2,border_top_left_radius=2, border_top_right_radius=2)
+        pygame.draw.rect(screen, (0,0,0), (1020, int(self.FFZ_ID[-1])*20+710,
+                                        self.CarRect.width,
+                                        5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
+        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(1020, int(self.FFZ_ID[-1])*20+710,
+                                        self.CarRect.width * self.Akku,
+                                        5), border_bottom_left_radius=2, border_bottom_right_radius=2)
+        # moving rect
+        pygame.draw.rect(screen, self.colour, self.CarRect, width=2,border_top_left_radius=2, border_top_right_radius=2)
+        pygame.draw.rect(screen, (0,0,0), (self.CarRect.bottomleft[0], 
+                                        self.CarRect.bottomleft[1] + 2, 
+                                        self.CarRect.width,
+                                        5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
+        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(self.CarRect.bottomleft[0], 
+                                        self.CarRect.bottomleft[1] + 2, 
+                                        self.CarRect.width * self.Akku,
+                                        5), border_bottom_left_radius=2, border_bottom_right_radius=2)
+        
 
 class BMG:
     def __init__(self, ShortNames, Abbreviation, Pos, LongName, Size=(60,60), Lager=False):
@@ -347,36 +369,28 @@ def PyGameDrawCars(currMovements, time):
                     ffz.CarRect.center=(PosX, PosY)
                     if mov['Charge'] != None:
                         ch = next((ch for ch in Chargen if ch.charge_ID == mov['Charge']))
-                        # PyGameWrite()
-                        pygame.draw.circle(screen, ch.colour, ffz.CarRect.center, 5)
-                    try:
-                        text = f"{mov['FFZ_ID']}"
-                        PyGameWrite(text, ffz.CarRect.midtop, 'bottom')
-                    except:
-                        pass
-
+                        ch.Pos = ffz.CarRect.center
+                        ch.drawSelf()
+                    
         else: # current movement is waiting
             TimeRatio = (time - mov['SZP']) / (mov['EZP'] - mov['SZP'])
             offset = int(mov['FFZ_ID'][-1]) * 22
             WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
             ffz.CarRect.center=(WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20)
-            try:
-                text = f"{mov['FFZ_ID']}"
-                PyGameWrite(text, ffz.CarRect.midtop, 'bottom')
-            except:
-                pass
-        
+            
         Akku = mov['lAkku'] + (mov['nAkku'] - mov['lAkku']) * TimeRatio
-        pygame.draw.rect(screen, ffz.colour, ffz.CarRect, width=2, border_top_left_radius=2, border_top_right_radius=2)
-        pygame.draw.rect(screen, (0,0,0), (ffz.CarRect.bottomleft[0], 
-                                        ffz.CarRect.bottomleft[1] + 2, 
-                                        ffz.CarRect.width,
-                                        5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
+        ffz.Akku = Akku
+        ffz.drawSelf()
+        # pygame.draw.rect(screen, ffz.colour, ffz.CarRect, width=2, border_top_left_radius=2, border_top_right_radius=2)
+        # pygame.draw.rect(screen, (0,0,0), (ffz.CarRect.bottomleft[0], 
+        #                                 ffz.CarRect.bottomleft[1] + 2, 
+        #                                 ffz.CarRect.width,
+        #                                 5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
         
-        pygame.draw.rect(screen, ampel_to_rgb(Akku),(ffz.CarRect.bottomleft[0], 
-                                        ffz.CarRect.bottomleft[1] + 2, 
-                                        ffz.CarRect.width * Akku,
-                                        5), border_bottom_left_radius=2, border_bottom_right_radius=2)
+        # pygame.draw.rect(screen, ampel_to_rgb(Akku),(ffz.CarRect.bottomleft[0], 
+        #                                 ffz.CarRect.bottomleft[1] + 2, 
+        #                                 ffz.CarRect.width * Akku,
+        #                                 5), border_bottom_left_radius=2, border_bottom_right_radius=2)
                     
             
 def PyGameWrite(text, Pos, LRTDC, size = 'normal'):
@@ -414,7 +428,7 @@ def initPygame():
     FFZs = []
     for ffz in FFZ_set:
         ColID = (int(ffz[-1]) -1) / (len(FFZ_set)-1)
-        FFZs.append(FFZ( ffz, ColID))
+        FFZs.append(FFZ(ffz, ColID, 1))
 
     Charge_set = {row['Ch'] for row in FLF}
     global Chargen
