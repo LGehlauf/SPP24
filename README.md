@@ -36,8 +36,12 @@ Notes für Jasper und Leo
     - Die einzelnen Bauteile werden gemäß Stückliste und Bedarf (gezogene Tagesstückzahl) aus dem Fertigteillager entnommen 
 - Perspektivisches Ziel: 
     - Es wäre gut, wenn man den Zustand der Simulation speichern könnte, um diesen einer weiteren Simulation als Input zu übergeben --> Das ist bereits möglich
-    - Mit dieser Funktionalität wäre es dann auch möglich der Simulation für einen beliebigen Zeitpunkt eine Liste zusätzlicher Aufträge zu übergeben und anschließend Aussagen über den Einfluss einer Annahme dieser Aufträge auf die logistischen Zielgrößen zu tätitgen --> Das wird im Laufe der Woche noch integriert 
+    - Mit dieser Funktionalität wäre es dann auch möglich der Simulation für einen beliebigen Zeitpunkt eine Liste zusätzlicher Aufträge zu übergeben und anschließend Aussagen über den Einfluss einer Annahme dieser Aufträge auf die logistischen Zielgrößen zu tätitgen --> Das wird im Laufe der Woche noch integriert
+
 
 # 19.11.2024 Karl Marbach
 - Die Funktion zum Einstreuen zusätzlicher Aufträge zu einem gewählten Zeitpunkt ist jetzt implementiert 
     - Reguläre Aufträge sind in der FLF mit der art "PP" (Produktionsprogramm) und zusätzliche Auftrage mit der Art "ZU" (Zusatz) gekennzeichnet
+ 
+# 21.11.2024 Jasper Bartel 
+- hinzufügen des jupyter NBs Fertigungsauswertung 
