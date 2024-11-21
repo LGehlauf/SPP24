@@ -139,15 +139,7 @@ class BMG:
             pygame.draw.rect(screen, colour, ColRect, border_radius=2)
             ch.Pos = (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7)
             ch.drawSelf()
-            # pygame.draw.circle(screen, charge.colour, (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7), 5)
-
-        # for xOff, ch in enumerate(self.AbQ):
-        #     yOff = xOff // 3
-        #     Pos = (self.postRect.topleft[0] + self.postRect.width/6 + (self.postRect.width) / 3 * (xOff % 3), 
-        #             self.postRect.topleft[1] + self.postRect.height/4 + (self.postRect.height) / 2 * yOff)
-        #     ch.Pos = Pos
-        #     ch.drawSelf()
-
+       
         if len(self.AbQ) > 0:
             xPos = self.postRect.topright[0] - 2 - self.AbQ[0].radius
             yPos = self.postRect.topright[1] + 30 + self.AbQ[0].radius
@@ -169,11 +161,6 @@ class BMG:
             ch.drawSelf()
             xPos -= (2 + ch.radius) * 2
 
-        # for xOff, ch in enumerate(self.LagerQ):
-        #     yOff = xOff // 15
-        #     pygame.draw.circle(screen, ch.colour,
-        #                        (self.wrapperRect.topright[0] - 12 - 12 * (xOff % 15), 
-        #                         self.wrapperRect.topright[1] + 52 + 12 * yOff), radius=5)
 
 BMGen = [
     BMG(['RTL'], 'a', (200, 300), 'Rohteillager', Lager=True),
@@ -223,7 +210,6 @@ def getTLF(cur):
             thisLine = splits[key][i]
             nextLine = splits[key][i+1]    
             thisLine['nAkku'] = nextLine['lAkku']
-            
             # splits[key][i]['nextAkku'] = nextline
             # gibt es eine zeitliche Lücke zwischen Start- und Endzeitpunkt der Fahrten?
             if thisLine['EZP'] < nextLine['SZP']: 
@@ -484,7 +470,7 @@ def mainloopPygame(clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, stat
 
         PyGameWrite("Space: pause/ unpause", (1150, 700), 'left')           
         PyGameWrite("Up/ Down: faster/ slower", (1150, 720), 'left')
-        PyGameWrite("left/ right: +- 1 hour", (1150, 740), 'left')
+        PyGameWrite("Left/ Right: +- 1 hour", (1150, 740), 'left')
 
         for bmg in BMGen:
             bmg.drawSelf()
