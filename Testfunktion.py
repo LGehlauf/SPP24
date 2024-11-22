@@ -37,6 +37,7 @@ globale_arbeitsplaene = None
 globale_auftraege = None
 globale_TLF = None
 globale_FLF = None
+globale_ELF = None
 
 def getTLF(cursor):
     # Hinterlegung des Graphen:
@@ -111,7 +112,9 @@ def getFLF(cursor):
             'bmg': Dict['bmg'] if Dict['bmg'] is not None else "Unbekannt",
             'ankunft': parse_datetime(Dict['ankunft']) if Dict['ankunft'] is not None else None,
             'abtransport': parse_datetime(Dict['abtransport']) if Dict['abtransport'] is not None else None,
-            'start_ruesten': parse_datetime(Dict['start_ruesten']) if Dict['start_ruesten'] is not None else None
+            'start_ruesten': parse_datetime(Dict['start_ruesten']) if Dict['start_ruesten'] is not None else None,
+            'start_bearbeitung': parse_datetime(Dict['start_bearbeitung']) if Dict['start_bearbeitung'] is not None else None,
+            'ende_bearbeitung': parse_datetime(Dict['ende_bearbeitung']) if Dict['ende_bearbeitung'] is not None else None
         }
 
         FLF.append(relevante_daten)
@@ -119,6 +122,33 @@ def getFLF(cursor):
     # Globale Variable speichern
     globale_FLF = FLF
     return FLF
+
+#GET ELF!
+def getELF(cursor):
+    global globale_ELF
+
+    if globale_ELF is not None:
+        return globale_ELF
+
+    cursor.execute("SELECT * FROM ELF")
+    raw = cursor.fetchall()
+    keys = ['Vorgangs_nr','bmg','start_downtime','end_downtime']
+    ELF = []
+    for tupel in raw:
+        Dict = dict(zip(keys, tupel))
+
+        relevante_daten = {
+            'Vorgangs_nr': int(Dict['Vorgangs_nr']) if Dict['Vorgangs_nr'] is not None else 0,
+            'bmg': Dict['bmg'] if Dict['bmg'] is not None else "Unbekannt",
+            'start_downtime': parse_datetime(Dict['start_downtime']) if Dict['start_downtime'] is not None else None,
+            'end_downtime': parse_datetime(Dict['end_downtime']) if Dict['end_downtime'] is not None else None
+        }
+
+        ELF.append(relevante_daten)
+
+    # Globale Variable speichern
+    globale_ELF = ELF
+    return ELF
 
 
 #Arbeitspläne in Dictionary umwandeln:
@@ -355,17 +385,16 @@ else:
 def Testfunktion4():
     globale_FLF = getFLF(cursor)
 
-    # Schichtzeiten für S1 und S2
     schichtzeiten = {
-        'S1': {'start': '08:00', 'end': '17:00'},
-        'S2': {'start': '06:00', 'end': '22:00'}
+        'S1': {'start': '06:00', 'end': '14:00'},
+        'S2': {'start': '06:00', 'end': '22:00'},
+        'S3': {'start': '00:00', 'end': '00:00'},
     }
 
-    schichtregime = 'S2'  # Angenommenes Schichtregime für den Test
+    schichtregime = 'S2'
     start = datetime.strptime(schichtzeiten[schichtregime]['start'], "%H:%M").time()
     end = datetime.strptime(schichtzeiten[schichtregime]['end'], "%H:%M").time()
 
-    # Iteriere durch die FLF-Einträge
     for flf in globale_FLF:
         charge = flf['Charge']
         ankunft = flf['ankunft']
@@ -373,18 +402,17 @@ def Testfunktion4():
         bmg = flf['bmg']
         start_ruesten = flf['start_ruesten']
 
-        # Skip Einträge ohne Ankunftszeit
         if ankunft is None:
             print(f"Charge {charge}, BMG {bmg}: Keine Ankunftszeit, übersprungen.")
             continue
 
-        # Überprüfe Ankunftszeit
+        #prüfen der ankunftszeit
         if ankunft.time() >= end:
             print(f"Charge {charge}, BMG {bmg}: Ankunft um {ankunft.time()} - Schichtende überschritten.")
         elif ankunft.time() < start:
             print(f"Charge {charge}, BMG {bmg}: Ankunft um {ankunft.time()} - Vor Schichtbeginn.")
 
-        # Überprüfe Abtransportzeit, nur wenn vorhanden und nicht RTL oder FTL
+        #sonderfall für RTL und FTL
         if abtransport is not None and bmg not in ['RTL', 'FTL']:
             if abtransport.time() >= end:
                 print(f"Charge {charge}, BMG {bmg}: Abtransport um {abtransport.time()} - Schichtende überschritten.")
@@ -393,7 +421,7 @@ def Testfunktion4():
         elif bmg in ['RTL', 'FTL']:
             print(f"Charge {charge}, im {bmg} angekommen.")
 
-        # Simuliere Pausen oder Fortsetzung
+        #wird die arbeitszeit überschritten?!
         if ankunft.time() >= end or (abtransport and abtransport.time() >= end):
             print(f"Charge {charge}, BMG {bmg}: Arbeit wird pausiert bis zum nächsten Schichtbeginn ({start_ruesten}).")
         elif ankunft.time() < start:
@@ -402,10 +430,77 @@ def Testfunktion4():
             print(f"Charge {charge}, BMG {bmg}: keine Überschreitung.")
 
 
-Testfunktion4()
+#Testfunktion4()
 
 ####5. Testfunktion
 # ELF: Wird an einer Maschine was produziert, obwohl Maschine zwischen Start- und Endfehler liegt
+#hier stimmt manches noch nicht so ganz:
+#lieber die relevante charge ausgeben und genau prüfen, ob alles passt
+#das geht auf jeden fall noch simpler!!!
+def Testfunktion5():
+    globale_ELF = getELF(cursor)
+    globale_FLF = getFLF(cursor)
+
+    for elf in globale_ELF:
+        vorgangs_nr = elf['Vorgangs_nr']
+        bmg_elf = elf['bmg']
+        start_downtime = elf['start_downtime']
+        end_downtime = elf['end_downtime']
+
+        relevante_flf = [
+            flf for flf in globale_FLF
+            if elf['bmg'] == flf['bmg'] and
+                       (
+                               start_downtime <= flf['start_ruesten'] <= end_downtime or
+                               start_downtime <= flf['start_bearbeitung'] <= end_downtime or
+                               start_downtime <= flf['ende_bearbeitung'] <= end_downtime
+                       )
+        ]
+
+        if relevante_flf:
+            for flf in relevante_flf:
+                print(f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf}:")
+                print(f"  - start_ruesten: {flf['start_ruesten']}")
+                print(f"  - start_bearbeitung: {flf['start_bearbeitung']}")
+                print(f"  - ende_bearbeitung: {flf['ende_bearbeitung']}")
+                print(f"  - charge: {flf['Charge']}")
+        else:
+            print(
+                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} wurde korrekt ohne relevante FLF-Daten berücksichtigt.")
+
+        if relevante_flf:
+            print(
+                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} berücksichtigt relevante FLF-Daten: {relevante_flf}"
+            )
+        else:
+            print(
+                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} wurde korrekt ohne relevante FLF-Daten berücksichtigt."
+            )
+
+        for flf in relevante_flf:
+            ende_bearbeitung = flf['ende_bearbeitung']
+            start_bearbeitung = flf['start_bearbeitung']
+
+            if ende_bearbeitung and start_downtime < ende_bearbeitung <= end_downtime:
+                print(
+                    f"Fehler: Bearbeitung an BMG {bmg_elf} (Charge {flf['Charge']}) endet während der Downtime "
+                    f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}, ende_bearbeitung: {ende_bearbeitung})."
+                )
+
+            if start_bearbeitung and start_downtime <= start_bearbeitung <= end_downtime:
+                print(
+                    f"Fehler: Bearbeitung an BMG {bmg_elf} (Charge {flf['Charge']}) startet während der Downtime "
+                    f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}, ankunft: {start_bearbeitung})."
+                )
+
+        print(
+            f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} "
+            f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}) wurde korrekt berücksichtigt."
+        )
+
+
+Testfunktion5()
+
 
 ####6. Aussschuss:
 # Wird Ausschussteil trotzdem bei Bestand hinzugefügt?
