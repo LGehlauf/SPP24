@@ -193,11 +193,11 @@ def AuftragsID(cursor, Chargennummer):
     for eintrag in auftrags_daten:
         if int(eintrag['charge']) == Chargennummer and eintrag['freigabe'] is not None:
             print('Auftrag:', eintrag['id'])
-            return eintrag['id'] #Hier wird die Auftragsnummer zurückgegeben
+            return eintrag['id'] # Hier wird die Auftragsnummer zurückgegeben
     return None
 
 
-#Aus AP die einzelnen Stationen ablesen
+# Aus AP die einzelnen Stationen ablesen
 #Wichtig: gleiche Struktur mit Start-und Endknoten!
 
 #Hier erstmal alle Schritte aus dem Arbeitsplan ableiten
@@ -325,7 +325,7 @@ def Testfunktion2():
 
 
 if globale_auftraege is not None and globale_TLF is not None and globale_arbeitsplaene is not None:
-    #Testfunktion2()
+    Testfunktion2()
     print('Testfunktion2 inaktiv')
 
 
@@ -459,47 +459,40 @@ def Testfunktion5():
 
         if relevante_flf:
             for flf in relevante_flf:
-                print(f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf}:")
-                print(f"  - start_ruesten: {flf['start_ruesten']}")
-                print(f"  - start_bearbeitung: {flf['start_bearbeitung']}")
-                print(f"  - ende_bearbeitung: {flf['ende_bearbeitung']}")
-                print(f"  - charge: {flf['Charge']}")
+                #variablen
+                start_ruesten = flf['start_ruesten']
+                start_bearbeitung = flf['start_bearbeitung']
+                ende_bearbeitung = flf['ende_bearbeitung']
+                #prints:
+                # ZUM TESTEN DER TESTFUNKTION:
+                # Bedingung von < zu <= ändern!!!
+                if start_downtime < start_ruesten < end_downtime:
+                    print(f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf}:")
+                    print('start der downtime: ', start_downtime)
+                    print('start ruesten: ', start_ruesten)
+                    print('ende der downtime: ', end_downtime)
+                    print('Ruestvorgang zwischen der ELF')
+
+                if start_downtime <= start_bearbeitung <= end_downtime:
+                    print(f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf}:")
+                    print('start der downtime: ', start_downtime)
+                    print('start bearbeitung: ', start_bearbeitung)
+                    print('ende der downtime: ', end_downtime)
+                    print('Bearbeitungszeit zwischen der ELF')
+
+                #ZUM TESTEN DER TESTFUNKTION:
+                #Bedingung von < zu <= ändern!!!
+                if start_downtime < ende_bearbeitung < end_downtime:
+                    print(f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf}:")
+                    print('start der downtime: ', start_downtime)
+                    print('ende der bearbeitung: ', ende_bearbeitung)
+                    print('ende der downtime: ', end_downtime)
+                    print('Bearbeitungsende zwischen der ELF')
         else:
-            print(
-                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} wurde korrekt ohne relevante FLF-Daten berücksichtigt.")
-
-        if relevante_flf:
-            print(
-                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} berücksichtigt relevante FLF-Daten: {relevante_flf}"
-            )
-        else:
-            print(
-                f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} wurde korrekt ohne relevante FLF-Daten berücksichtigt."
-            )
-
-        for flf in relevante_flf:
-            ende_bearbeitung = flf['ende_bearbeitung']
-            start_bearbeitung = flf['start_bearbeitung']
-
-            if ende_bearbeitung and start_downtime < ende_bearbeitung <= end_downtime:
-                print(
-                    f"Fehler: Bearbeitung an BMG {bmg_elf} (Charge {flf['Charge']}) endet während der Downtime "
-                    f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}, ende_bearbeitung: {ende_bearbeitung})."
-                )
-
-            if start_bearbeitung and start_downtime <= start_bearbeitung <= end_downtime:
-                print(
-                    f"Fehler: Bearbeitung an BMG {bmg_elf} (Charge {flf['Charge']}) startet während der Downtime "
-                    f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}, ankunft: {start_bearbeitung})."
-                )
-
-        print(
-            f"Downtime für ELF Vorgang {vorgangs_nr}, BMG {bmg_elf} "
-            f"(start_downtime: {start_downtime}, end_downtime: {end_downtime}) wurde korrekt berücksichtigt."
-        )
+            print('Downtime für ELF Vorgang',vorgangs_nr, 'BMG', bmg_elf, 'wurde korrekt ohne relevante FLF-Daten berücksichtigt.')
 
 
-Testfunktion5()
+#Testfunktion5()
 
 
 ####6. Aussschuss:
