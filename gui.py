@@ -75,6 +75,7 @@ class BMG:
         self.Pos = Pos
         self.Size = (Size[0], Size[1] + Size[1] * 0.5 * (len(ShortNames)-1))
         self.Lager = Lager
+        self.Machines = []
         # left, top, width, height
         self.AnQ = []
         self.RZPQ = []
@@ -84,6 +85,7 @@ class BMG:
         self.mains = []
         for i in range(len(self.ShortNames)):
             self.mains.append((self.Pos[0] - 0.5 * self.Size[0], self.Pos[1] - 0.5 * self.Size[1] + i * (1 / len(self.ShortNames) * self.Size[1]), self.Size[0], 1 / len(self.ShortNames) * self.Size[1] ))
+            self.Machines.append({'ShortName': self.ShortNames[i], 'BQ': [], 'RZPQ': [], 'Down': False})
         self.pre = (self.mains[0][0] - 1.2 * self.mains[0][2], self.mains[0][1] + 4, 1.2 * self.mains[0][2], self.Size[1] - 8)
         self.post = (self.mains[0][0] + self.mains[0][2], self.pre[1], self.pre[2], self.pre[3])
             
@@ -91,6 +93,9 @@ class BMG:
         self.label_text = f"{self.LongName} ({self.Abbreviation})"
         
     def drawSelf(self):
+        for Station in self.Machines:
+            if Station['Down'] == True:
+                PyGameWrite(f"{Station['ShortName']} DOWN", (self.Pos[0], self.wrapper[1] - 10), 'center')    
         PyGameWrite(self.label_text, (self.Pos[0], self.wrapper[1]+ 15), 'center')
         self.wrapperRect = pygame.draw.rect(screen, (0, 0, 0), self.wrapper, width=1, border_radius=10)
         self.Stations = (self.wrapperRect.midleft, self.wrapperRect.midtop, self.wrapperRect.midright, self.wrapperRect.midbottom)
@@ -247,7 +252,19 @@ def getFLF(cur):
             Dict[key] = parse_datetime(Dict[key])
         FLF.append(Dict)
     return FLF
-    
+
+def getELF(cur):
+    cur.execute("SELECT * FROM ELF")
+    raw = cur.fetchall()
+    # keys = ['Vorgangs_nr', 'bmg', 'start_downtime', 'end_downtime']
+    keys = ['VNR', 'BMG', 'SDT', 'EDT']
+    ELF = []
+    for tupel in raw:
+        Dict = dict(zip(keys, tupel))
+        for key in ['SDT', 'EDT']:
+            Dict[key] = parse_datetime(Dict[key])
+        ELF.append(Dict)
+    return ELF
 
 def PyGameDrawClock(clockExtern, fps):
     text = f"{clockExtern.strftime("%d. %B %Y %H:%M:%S")}"
@@ -269,6 +286,17 @@ def SampleCurrChargen(FLF, time):
     ]
     return cC
 
+def SampleCurrDownTime(ELF, time):
+    for bmg in BMGen:
+        for station in bmg.Machines:
+            station['Down'] = False
+    currDowntime = [DT for DT in ELF if DT['SDT'] <= time and DT['EDT'] > time]
+    for DT in currDowntime:
+        bmg = next((bmg for bmg in BMGen if DT['BMG'] in bmg.ShortNames), None)
+        MachineDict = next((Dict for Dict in bmg.Machines if Dict['ShortName'] == DT['BMG']))
+        MachineDict['Down'] = True
+    return currDowntime
+    
 def viridis_to_rgb(fraction):
     cmap = plt.get_cmap('viridis')
     rgb = cmap(fraction)[:3]
@@ -278,10 +306,12 @@ def viridis_to_rgb(fraction):
 def ampel_to_rgb(fraction):
     return (int((1 -fraction) * 255), int(fraction * 255), 0)
 
-def PyGameDrawChargen(currChargen, time):
+def PyGameDrawChargen(currChargen, currDowntime, time):
     for Ch in currChargen:
         ch = next((ch for ch in Chargen if ch.charge_ID == Ch['Ch']), None)
         bmg = next((bmg for bmg in BMGen if Ch['BMG'] in bmg.ShortNames ), None)
+        bmgMachine = next((Dict for Dict in bmg.Machines if Dict['ShortName'] == Ch['BMG']))
+        dt = next((dt for dt in currDowntime if dt['BMG'] == Ch['BMG']), None)
         if bmg == None:
             raise NotImplementedError(f'Charge {Ch} has no BMG')
         
@@ -290,11 +320,19 @@ def PyGameDrawChargen(currChargen, time):
         elif Ch['AnZP'] <= time and time < Ch['RZP']:
             bmg.AnQ.append(ch)
         elif Ch['RZP'] <= time and time < Ch['SB']:
-            DurrRatio = (time-Ch['RZP']) / (Ch['SB'] - Ch['RZP'])
-            bmg.RZPQ.append((Ch['BMG'], ch, DurrRatio))     
-        elif Ch['SB'] <= time and time < Ch['EB']:   
-            DurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
-            bmg.BQ.append((Ch['BMG'], ch, DurrRatio))
+            # RZPDurrRatio = 0
+            # if bmgMachine['Down'] == False: # nur neuberechnung wenn die BMG arbeitet
+            # Downtime = (min(Ch['SB'], dt['EDT']) - max(Ch['RZP'], dt['SDT'])) if dt != None else timedelta(seconds = 0)
+            RZPDurrRatio = (time-Ch['RZP']) / (Ch['SB'] - Ch['RZP'])
+            bmg.RZPQ.append((Ch['BMG'], ch, RZPDurrRatio))     
+            
+        elif Ch['SB'] <= time and time < Ch['EB']:
+            # BQDurrRatio = 0
+            # if bmgMachine['Down'] == False:
+                # Downtime = (min(Ch['EB'], dt['EDT']) - max(Ch['SB'], dt['SDT'])) if dt != None else timedelta(seconds = 0)
+            BQDurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
+            bmg.BQ.append((Ch['BMG'], ch, BQDurrRatio))
+            
         elif Ch['EB'] <= time and time < Ch['AbZP']:
             bmg.AbQ.append(ch)
             
@@ -304,7 +342,7 @@ def PyGameDrawChargen(currChargen, time):
         bmg.AnQ = []
         bmg.RZPQ = []
         bmg.BQ = []
-        bmg.AbQ = []   
+        bmg.AbQ = []
 
 
 def findShortestPath(stations1, stations2):
@@ -486,6 +524,7 @@ def mainloopPygame(clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, stat
 
         currMovements = SampleCurrMovements(TLF, Time)
         currChargen = SampleCurrChargen(FLF, Time)
+        currDowntime = SampleCurrDownTime(ELF, Time)
 
         PyGameWrite(f'Simulation speed: {SimSpeeds[SimSpeed]}', (20, 40), 'left')
 
@@ -518,7 +557,7 @@ def mainloopPygame(clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, stat
                     i += 1
 
         PyGameDrawCars(currMovements, Time)
-        PyGameDrawChargen(currChargen, Time)
+        PyGameDrawChargen(currChargen, currDowntime, Time)
         
         pygame.display.flip()
         clock.tick(framerate)
@@ -527,9 +566,8 @@ con = sqlite3.connect('prod_data.db')
 cur = con.cursor()
 
 TLF = getTLF(cur)
-
-
 FLF = getFLF(cur)
+ELF = getELF(cur)
 
 
 a =0
