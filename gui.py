@@ -267,7 +267,8 @@ def getELF(cur):
     return ELF
 
 def PyGameDrawClock(clockExtern, fps):
-    text = f"{clockExtern.strftime("%d. %B %Y %H:%M:%S")}"
+    #text = f"{clockExtern.strftime("%d. %B %Y %H:%M:%S")}"
+    text = f"{clockExtern.strftime('%d. %B %Y %H:%M:%S')}"
     PyGameWrite(text, (20, 20), 'left')
     text = f"FPS: {round(fps,1)}"
     PyGameWrite(text, (20, 60), 'left')

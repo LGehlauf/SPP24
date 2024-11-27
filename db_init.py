@@ -109,11 +109,11 @@ def db_init():
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
                 ('A3', 'Zylinderrohr', '200', '50', '330', '310', '250'))
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                ('A4', 'Zylinderboden', '200', '100', '530', '510', '500'))
+                ('A4', 'Zylinderboden', '200', '100', '530', '70', '300'))
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                ('A5', 'Kolbenstange', '200', '50', '530', '230', '250'))
+                ('A5', 'Kolbenstange', '200', '50', '530', '230', '190'))
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                ('A6', 'Zahnrad', '200', '100', '530', '590', '500'))
+                ('A6', 'Zahnrad', '200', '100', '530', '230', '500'))
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
                 ('A7', 'Welle', '200', '25', '530', '190', '150'))
     cursor.execute('INSERT INTO produktstammdaten (id, bezeichnung, dlz_plan, losgroesse, bestand_rtl, bestand_ftl, bestellbestand) VALUES (?, ?, ?, ?, ?, ?, ?)', 
