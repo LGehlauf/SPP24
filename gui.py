@@ -36,6 +36,7 @@ class Charge:
     def drawSelf(self):
         PyGameWrite(f'{self.shortID}', self.Pos, 'center', size='small')
         pygame.draw.circle(screen, self.colour, self.Pos, self.radius, self.width)
+        
 
 
 class FFZ:
@@ -48,11 +49,11 @@ class FFZ:
         self.CarRect = pygame.draw.rect(screen, self.colour, rect, border_radius=2)
     def drawSelf(self):
         # legend rect 
-        PyGameWrite(f'{self.FFZ_ID}', (1000, int(self.FFZ_ID[-1])*32+650), 'left', size="normal")
-        pygame.draw.rect(screen, self.colour, (1020, int(self.FFZ_ID[-1])*32+636, self.CarRect.width, self.CarRect.height), width=2,border_top_left_radius=2, border_top_right_radius=2)
-        pygame.draw.rect(screen, (0,0,0), (1020, int(self.FFZ_ID[-1])*32+660, self.CarRect.width,
+        PyGameWrite(f'{self.FFZ_ID}', (250, int(self.FFZ_ID[-1])*32+650), 'left', size="normal")
+        pygame.draw.rect(screen, self.colour, (270, int(self.FFZ_ID[-1])*32+636, self.CarRect.width, self.CarRect.height), width=2,border_top_left_radius=2, border_top_right_radius=2)
+        pygame.draw.rect(screen, (0,0,0), (270, int(self.FFZ_ID[-1])*32+660, self.CarRect.width,
                                         5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
-        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(1020, int(self.FFZ_ID[-1])*32+660,
+        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(270, int(self.FFZ_ID[-1])*32+660,
                                         self.CarRect.width * self.Akku,
                                         5), border_bottom_left_radius=2, border_bottom_right_radius=2)
         # moving rect
@@ -61,7 +62,7 @@ class FFZ:
                                         self.CarRect.bottomleft[1] + 2, 
                                         self.CarRect.width,
                                         5), width=1, border_bottom_left_radius=2, border_bottom_right_radius=2)
-        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(self.CarRect.bottomleft[0], 
+        pygame.draw.rect(screen, ampel_to_rgb(self.Akku),(self.CarRect.bottomleft[0],
                                         self.CarRect.bottomleft[1] + 2, 
                                         self.CarRect.width * self.Akku,
                                         5), border_bottom_left_radius=2, border_bottom_right_radius=2)
@@ -73,77 +74,114 @@ class BMG:
         self.Abbreviation = Abbreviation
         self.LongName = LongName
         self.Pos = Pos
-        self.Size = (Size[0], Size[1] + Size[1] * 0.5 * (len(ShortNames)-1))
+        self.Size = (Size[0], Size[1] + Size[1] * 0.5 * (len(ShortNames)-1)) # sum size of alle mains 
         self.Lager = Lager
-        self.Machines = []
-        # left, top, width, height
         self.AnQ = []
-        self.RZPQ = []
-        self.BQ = []
         self.AbQ = []
         self.LagerQ = []
         self.mains = []
-        for i in range(len(self.ShortNames)):
-            self.mains.append((self.Pos[0] - 0.5 * self.Size[0], self.Pos[1] - 0.5 * self.Size[1] + i * (1 / len(self.ShortNames) * self.Size[1]), self.Size[0], 1 / len(self.ShortNames) * self.Size[1] ))
-            self.Machines.append({'ShortName': self.ShortNames[i], 'BQ': [], 'RZPQ': [], 'Down': False})
-        self.pre = (self.mains[0][0] - 1.2 * self.mains[0][2], self.mains[0][1] + 4, 1.2 * self.mains[0][2], self.Size[1] - 8)
-        self.post = (self.mains[0][0] + self.mains[0][2], self.pre[1], self.pre[2], self.pre[3])
+        wrapper = (
+            self.Pos[0] - 1.7 * self.Size[0] - 10, 
+            self.Pos[1] - 0.5 * self.Size[1] - 32, 
+            3.4 * self.Size[0] + 20, 
+            self.Size[1] + 80)
+        self.wrapperRect = pygame.draw.rect(screen, (0, 0, 0), wrapper, width=1, border_radius=10)
+        self.Stations = (self.wrapperRect.midleft, self.wrapperRect.midtop, self.wrapperRect.midright, self.wrapperRect.midbottom)
+        
+        if not self.Lager:
+            pre = (
+                self.Pos[0] - 1.7 * self.Size[0], 
+                self.Pos[1] - 0.5 * self.Size[1] + 4, 
+                1.2 * self.Size[0],
+                self.Size[1] - 8
+            )
+            post = (
+                self.Pos[0] + 0.5 * self.Size[0], 
+                pre[1], 
+                pre[2], 
+                pre[3]
+            )
+            self.preRect = pygame.draw.rect(screen, (0, 0, 0), pre, width=1, border_bottom_left_radius=4, border_top_left_radius=4)
+            self.postRect = pygame.draw.rect(screen, (0, 0, 0), post, width=1, border_bottom_right_radius=4, border_top_right_radius=4)
             
-        self.wrapper = (self.pre[0] - 10, self.mains[0][1] - 32, self.pre[2] + self.mains[0][2] + self.post[2] + 20, self.Size[1] + 80)
+            self.Machines = []
+            for i, ShortName in enumerate(self.ShortNames):
+                main = (
+                    (self.Pos[0] - 0.5 * self.Size[0], 
+                    self.Pos[1] - 0.5 * self.Size[1] + i * (1 / len(self.ShortNames) * self.Size[1]), 
+                    self.Size[0], 
+                    1 / len(self.ShortNames) * self.Size[1] )
+                )
+                self.Machines.append({'ShortName': self.ShortNames[i], 'RZPQ': None, 'BQ': None, 'Down': False, 
+                                    'Rect': pygame.draw.rect(screen, (0,0,0), main, width=1, border_radius=4)})
         self.label_text = f"{self.LongName} ({self.Abbreviation})"
         
     def drawSelf(self):
-        for Station in self.Machines:
-            if Station['Down'] == True:
-                PyGameWrite(f"{Station['ShortName']} DOWN", (self.Pos[0], self.wrapper[1] - 10), 'center')    
-        PyGameWrite(self.label_text, (self.Pos[0], self.wrapper[1]+ 15), 'center')
-        self.wrapperRect = pygame.draw.rect(screen, (0, 0, 0), self.wrapper, width=1, border_radius=10)
-        self.Stations = (self.wrapperRect.midleft, self.wrapperRect.midtop, self.wrapperRect.midright, self.wrapperRect.midbottom)
-        # for station in self.Stations:
-        #     pygame.draw.circle(screen, (30,30,30), station, 5)
+        if self.Lager == False:   
+            for Station in self.Machines:
+                if Station['Down'] == True:
+                    PyGameWrite(f"{Station['ShortName']} DOWN", (self.Pos[0], self.wrapperRect[1] - 10), 'center')    
+        PyGameWrite(self.label_text, (self.Pos[0], self.wrapperRect.midtop[1]+ 15), 'center')
+        pygame.draw.rect(screen, (0, 0, 0), self.wrapperRect, width=1, border_radius=10)
         if not self.Lager:
-            self.preRect = pygame.draw.rect(screen, (0, 0, 0), self.pre, width=1, border_bottom_left_radius=4, border_top_left_radius=4)
-            self.postRect = pygame.draw.rect(screen, (0, 0, 0), self.post, width=1, border_bottom_right_radius=4, border_top_right_radius=4)
-            self.mainRects = []
-            for main in self.mains:
-                self.mainRects.append(pygame.draw.rect(screen, (0, 0, 0), main, width=1, border_radius=4))
+            pygame.draw.rect(screen, (0, 0, 0), self.preRect, width=1, border_bottom_left_radius=4, border_top_left_radius=4)
+            pygame.draw.rect(screen, (0, 0, 0), self.postRect, width=1, border_bottom_right_radius=4, border_top_right_radius=4)
+            for machine in self.Machines:
+                if machine['Down'] == True:
+                    pygame.draw.rect(screen, (255, 100, 100), machine['Rect'], border_radius=4)
+                    pygame.draw.rect(screen, (0, 0, 0), machine['Rect'], width=1, border_radius=4)
+                else:
+                    pygame.draw.rect(screen, (0, 0, 0), machine['Rect'], width=1, border_radius=4)
 
-    def drawQueues(self):
+    def drawRQueue(self):
+        for machine in self.Machines:
+            if machine['RZPQ'] != None:
+                RCh = machine['RZPQ'][0]
+                RFrac = machine['RZPQ'][1]
+                Rrect = (
+                    machine['Rect'].left + 2, 
+                    machine['Rect'].top + machine['Rect'].height * 0.2, 
+                    RFrac * (machine['Rect'].width - 4), 
+                    machine['Rect'].height * 0.2
+                )
+                pygame.draw.rect(screen, (0,0,0), Rrect, border_radius=2, width=1)
+                RCh.Pos = (machine['Rect'].centerx, machine['Rect'].top + machine['Rect'].height * 0.7)
+                RCh.drawSelf()
+
+    def drawBQueue(self):
+        for machine in self.Machines:
+            if machine['BQ'] != None:
+                BCh = machine['BQ'][0]
+                BFrac = machine['BQ'][1]
+                Rrect = (
+                    machine['Rect'].left + 2, 
+                    machine['Rect'].top + machine['Rect'].height * 0.2, 
+                    machine['Rect'].width - 4, 
+                    machine['Rect'].height * 0.2
+                )
+                pygame.draw.rect(screen, (0,0,0), Rrect, border_radius=2, width=1)
+                colour = ampel_to_rgb(BFrac)
+                ColRect = (
+                    Rrect[0],
+                    Rrect[1],
+                    Rrect[2] * BFrac,
+                    Rrect[3]
+                )
+                pygame.draw.rect(screen, colour, ColRect, border_radius=2)
+                BCh.Pos = (machine['Rect'].centerx, machine['Rect'].top + machine['Rect'].height * 0.7)
+                BCh.drawSelf()
+
+
+    def drawAnAbLagerQueues(self):
         if len(self.AnQ) > 0:
-            xPos, yPos = self.preRect.topright[0] - 2 - self.AnQ[0].radius, self.preRect.topright[1] + 2 + self.AnQ[0].radius
+            xPos, yPos = self.preRect.right - 2 - self.AnQ[0].radius, self.preRect.top + 2 + self.AnQ[0].radius
         for i, ch in enumerate(self.AnQ):
-            if xPos - 2 - ch.radius < self.preRect.topleft[0]:
-                xPos = self.preRect.topright[0] - 2 - ch.radius
+            if xPos - 2 - ch.radius < self.preRect.left:
+                xPos = self.preRect.right - 2 - ch.radius
                 yPos += (2 + ch.radius) * 2
             ch.Pos = (xPos, yPos)
             ch.drawSelf()
             xPos -= (2 + ch.radius) * 2
-
-        for tuple in self.RZPQ:
-            if re.search(r'(\d+)', tuple[0]) != None:
-                i = int(re.search(r'(\d+)', tuple[0]).group(0)) - 1
-            else: i = 0
-            ch = tuple[1]
-            frac = tuple[2]
-            BorRect = (self.mainRects[i].topleft[0]+2, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.2, frac * (self.mainRects[i].width-4), self.mainRects[i].height * 0.2)
-            pygame.draw.rect(screen, (0,0,0), BorRect, border_radius=2, width = 1) 
-            ch.Pos = (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7)
-            ch.drawSelf()
-            # pygame.draw.circle(screen, charge.colour, (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7), 5)
-        
-        for tuple in self.BQ:
-            if re.search(r'(\d+)', tuple[0]) != None:
-                i = int(re.search(r'(\d+)', tuple[0]).group(0)) - 1
-            else: i = 0
-            ch = tuple[1]
-            frac = tuple[2]
-            colour = ampel_to_rgb(frac)
-            BorRect = (self.mainRects[i].topleft[0]+2, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.2, (self.mainRects[i].width-4), self.mainRects[i].height * 0.2)
-            ColRect = (self.mainRects[i].topleft[0]+2, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.2, frac * (self.mainRects[i].width-4), self.mainRects[i].height * 0.2)
-            pygame.draw.rect(screen, (0,0,0), BorRect, border_radius=2, width = 1)
-            pygame.draw.rect(screen, colour, ColRect, border_radius=2)
-            ch.Pos = (self.mainRects[i].centerx, self.mainRects[i].topleft[1] + self.mainRects[i].height * 0.7)
-            ch.drawSelf()
        
         if len(self.AbQ) > 0:
             xPos = self.postRect.topright[0] - 2 - self.AbQ[0].radius
@@ -166,17 +204,6 @@ class BMG:
             ch.drawSelf()
             xPos -= (2 + ch.radius) * 2
 
-
-BMGen = [
-    BMG(['RTL'], 'a', (200, 300), 'Rohteillager', Lager=True),
-    BMG(['SAE'], 'b', (550, 300), 'Sägen'),
-    BMG(['DRH1', 'DRH2'], 'c', (550, 100), 'Drehen'),
-    BMG(['FRA'], 'd', (550, 500), 'Fräsen'),
-    BMG(['QPR'], 'e', (850, 300), 'Qualitätsprüfung'),
-    BMG(['FTL'], 'f', (1200, 300), 'Fertigteillager', Lager=True),
-    BMG(['LFF'], 'g', (850, 100), 'Ladestation FFZ', Lager=True, Size=(50,0)),
-    BMG(['HAE'], 'h', (1200, 100), 'Härten')
-]
 
 def parse_datetime(datums_string:str):
     for format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
@@ -289,8 +316,9 @@ def SampleCurrChargen(FLF, time):
 
 def SampleCurrDownTime(ELF, time):
     for bmg in BMGen:
-        for station in bmg.Machines:
-            station['Down'] = False
+        if bmg.Lager == False:
+            for station in bmg.Machines:
+                station['Down'] = False
     currDowntime = [DT for DT in ELF if DT['SDT'] <= time and DT['EDT'] > time]
     for DT in currDowntime:
         bmg = next((bmg for bmg in BMGen if DT['BMG'] in bmg.ShortNames), None)
@@ -308,37 +336,58 @@ def ampel_to_rgb(fraction):
     return (int((1 -fraction) * 255), int(fraction * 255), 0)
 
 def PyGameDrawChargen(currChargen, currDowntime, time):
-    for Ch in currChargen:
+    # legende
+    xStart = 990
+    yStart = 20
+    for xOff, key in enumerate(['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP', 'AnzBT', 'Aussch.']):
+        PyGameWrite(key, (xStart + xOff * 45, yStart), 'left')
+    
+    for yOff, Ch in enumerate(currChargen):
         ch = next((ch for ch in Chargen if ch.charge_ID == Ch['Ch']), None)
         bmg = next((bmg for bmg in BMGen if Ch['BMG'] in bmg.ShortNames ), None)
-        bmgMachine = next((Dict for Dict in bmg.Machines if Dict['ShortName'] == Ch['BMG']))
-        dt = next((dt for dt in currDowntime if dt['BMG'] == Ch['BMG']), None)
+        
         if bmg == None:
             raise NotImplementedError(f'Charge {Ch} has no BMG')
         
         if bmg.Lager == True:
             bmg.LagerQ.append(ch)
-        elif Ch['AnZP'] <= time and time < Ch['RZP']:
-            bmg.AnQ.append(ch)
-        elif Ch['RZP'] <= time and time < Ch['SB']:
-            # RZPDurrRatio = 0
-            # if bmgMachine['Down'] == False: # nur neuberechnung wenn die BMG arbeitet
-            # Downtime = (min(Ch['SB'], dt['EDT']) - max(Ch['RZP'], dt['SDT'])) if dt != None else timedelta(seconds = 0)
-            RZPDurrRatio = (time-Ch['RZP']) / (Ch['SB'] - Ch['RZP'])
-            bmg.RZPQ.append((Ch['BMG'], ch, RZPDurrRatio))     
+
+        else:
+            bmgMachine = next((machine for machine in bmg.Machines if machine['ShortName'] == Ch['BMG']), None)
+            dt = next((dt for dt in currDowntime if dt['BMG'] == Ch['BMG']), None)
             
-        elif Ch['SB'] <= time and time < Ch['EB']:
-            # BQDurrRatio = 0
-            # if bmgMachine['Down'] == False:
-                # Downtime = (min(Ch['EB'], dt['EDT']) - max(Ch['SB'], dt['SDT'])) if dt != None else timedelta(seconds = 0)
-            BQDurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
-            bmg.BQ.append((Ch['BMG'], ch, BQDurrRatio))
-            
-        elif Ch['EB'] <= time and time < Ch['AbZP']:
-            bmg.AbQ.append(ch)
-            
+            if Ch['AnZP'] <= time and time < Ch['RZP']:
+                bmg.AnQ.append(ch)
+            elif Ch['RZP'] <= time and time < Ch['SB']:
+                # old RZPDurrRatio
+                if bmgMachine['Down'] == True:
+                    RZPDurrRatio = bmgMachine['RZPQ'][1]
+                else: 
+                    Downtime = (min(Ch['SB'], dt['EDT']) - max(Ch['RZP'], dt['SDT'])) if dt != None else timedelta(seconds = 0)
+                    RZPDurrRatio = (time-Ch['RZP']) / (Ch['SB'] - Ch['RZP'] - Downtime)
+                bmgMachine['RZPQ'] = (ch, RZPDurrRatio)
+                bmg.drawRQueue()
+                bmgMachine['RZPQ'] = None
+            elif Ch['SB'] <= time and time < Ch['EB']:
+                BQDurrRatio = (time - Ch['SB']) / (Ch['EB'] - Ch['SB'])
+                bmgMachine['BQ'] = (ch, BQDurrRatio)
+                bmg.drawBQueue()
+                bmgMachine['BQ'] = None
+
+            elif Ch['EB'] <= time and time < Ch['AbZP']:
+                bmg.AbQ.append(ch)
+        # legende
+        xOff = 0 
+        for key, value in Ch.items():
+            if key in ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP', 'Anz_Bauteile', 'Ausschuss']:
+                if value != None and key in ['AnZP', 'RZP','SB', 'EB', 'AbZP']:
+                    value = value.strftime('%H:%M')
+                PyGameWrite(str(value), (xStart + (xOff % 9) * 45, yStart + 15 + yOff * 15), 'left', 'small')
+                xOff += 1
+
+
     for bmg in BMGen:
-        bmg.drawQueues()
+        bmg.drawAnAbLagerQueues()
         bmg.LagerQ = []
         bmg.AnQ = []
         bmg.RZPQ = []
@@ -400,12 +449,22 @@ def PyGameDrawCars(currMovements, time):
                 
             for i in range(len(mov['Route']) - 1):
                 # welche strecke muss genau jetzt animiert werden? Dafür gibt es die CheckpointTimes
-                if time > mov['CheckpointTimes'][i] and time < mov['CheckpointTimes'][i+1]:
+                if mov['CheckpointTimes'][i] <= time and time < mov['CheckpointTimes'][i+1]:
                     DistanceX = mov['PyRoute'][i][1][0] - mov['PyRoute'][i][0][0]
                     DistanceY = mov['PyRoute'][i][1][1] - mov['PyRoute'][i][0][1]
                     TimeRatio = (time - mov['CheckpointTimes'][i]) / (mov['CheckpointTimes'][i+1] - mov['CheckpointTimes'][i])
                     PosX = mov['PyRoute'][i][0][0] + TimeRatio * DistanceX
                     PosY = mov['PyRoute'][i][0][1] + TimeRatio * DistanceY
+                    if DistanceX > 0 and DistanceY == 0:
+                        PosY += ffz.size[1]
+                    elif DistanceX < 0 and DistanceY == 0:
+                        PosY -= ffz.size[1]
+                    elif DistanceY > 0 and DistanceX == 0:
+                        PosX -= ffz.size[0]
+                    elif DistanceY < 0 and DistanceX == 0:
+                        PosX += ffz.size[0]
+                    
+
                     ffz.CarRect.center=(PosX, PosY)
                     if mov['Charge'] != None:
                         ch = next((ch for ch in Chargen if ch.charge_ID == mov['Charge']), None)
@@ -414,9 +473,9 @@ def PyGameDrawCars(currMovements, time):
                     
         else: # current movement is waiting
             TimeRatio = (time - mov['SZP']) / (mov['EZP'] - mov['SZP'])
-            offset = int(mov['FFZ_ID'][-1]) * 25
+            offset = int(mov['FFZ_ID'][-1]) * 28
             WS = next((bmg for bmg in BMGen if bmg.Abbreviation == mov['SK']), None) # Waiting Station
-            ffz.CarRect.center=(WS.wrapper[0] + 20 + offset, WS.wrapper[1] + WS.wrapper[3] - 20)
+            ffz.CarRect.center=(WS.wrapperRect.left + 20 + offset, WS.wrapperRect.top + WS.wrapperRect.height - 24)
             
         
         Akku = mov['lAkku'] + (mov['nAkku'] - mov['lAkku']) * TimeRatio
@@ -444,6 +503,17 @@ def initPygame():
     pygame.init()
     global screen
     screen = pygame.display.set_mode((1400, 800))
+    global BMGen
+    BMGen = [
+        BMG(['RTL'], 'a', (150, 300), 'Rohteillager', Lager=True, Size=(40,40)),
+        BMG(['SAE'], 'b', (390, 300), 'Sägen'),
+        BMG(['DRH1', 'DRH2'], 'c', (380, 100), 'Drehen'),
+        BMG(['FRA'], 'd', (380, 480), 'Fräsen'),
+        BMG(['QPR'], 'e', (650, 300), 'Qualitätsprüfung'),
+        BMG(['FTL'], 'f', (880, 300), 'Fertigteillager', Lager=True, Size=(40,40)),
+        BMG(['LFF'], 'g', (620, 100), 'Ladestation FFZ', Lager=True, Size=(30,0)),
+        BMG(['HAE'], 'h', (850, 100), 'Härten')
+    ]
     clock = pygame.time.Clock()
     framerate = 60 # fps
     dirPath = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
@@ -507,9 +577,9 @@ def mainloopPygame(clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, stat
         
         screen.fill((255, 255, 255))
 
-        PyGameWrite("Space: pause/ unpause", (1150, 700), 'left')           
-        PyGameWrite("Up/ Down: faster/ slower", (1150, 720), 'left')
-        PyGameWrite("Left/ Right: +- 1 hour", (1150, 740), 'left')
+        PyGameWrite("Space: pause/ unpause", (50, 700), 'left')           
+        PyGameWrite("Up/ Down: faster/ slower", (50, 720), 'left')
+        PyGameWrite("Left/ Right: +- 1 hour", (50, 740), 'left')
 
         for bmg in BMGen:
             bmg.drawSelf()
@@ -527,35 +597,50 @@ def mainloopPygame(clock, framerate, passedTime, Time, SimSpeeds, SimSpeed, stat
         currChargen = SampleCurrChargen(FLF, Time)
         currDowntime = SampleCurrDownTime(ELF, Time)
 
+
         PyGameWrite(f'Simulation speed: {SimSpeeds[SimSpeed]}', (20, 40), 'left')
 
-        i = 0
-        for key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP', 'Charge']:
-            PyGameWrite(key, (10 + i * 50, 650), 'left')
-            i += 1
+        # i = 0
+        # for key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP', 'Charge']:
+        #     PyGameWrite(key, (10 + i * 50, 650), 'left')
+        #     i += 1
 
-        for j, mov in enumerate(currMovements):
-            i = 0
-            for key, value in mov.items():
-                if key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP', 'Charge']:
-                    if key in ['SZP', 'EZP']:
-                        value = value.strftime('%H:%M')
-                    PyGameWrite(str(value), (10 + i * 50, 670 + j * 20), 'left')
-                    i += 1
+        # for j, mov in enumerate(currMovements):
+        #     i = 0
+        #     for key, value in mov.items():
+        #         if key in ['VNR', 'FFZ_ID', 'SK', 'EK', 'SZP', 'EZP', 'Charge']:
+        #             if key in ['SZP', 'EZP']:
+        #                 value = value.strftime('%H:%M')
+        #             PyGameWrite(str(value), (10 + i * 50, 670 + j * 20), 'left')
+        #             i += 1
         
-        ChargenNoLager = [ch for ch in currChargen if ch['BMG'] not in ['RTL', 'FTL']]
-        i = 0
-        for key in ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP']:
-            PyGameWrite(key, (500 + i * 50, 600), 'left')
-            i += 1
-        for j, mov in enumerate(currChargen):
-            i = 0
-            for key, value in mov.items():
-                if key in ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP']:
-                    if value != None and key in ['AnZP', 'RZP','SB', 'EB', 'AbZP']:
-                        value = value.strftime('%H:%M')    
-                    PyGameWrite(str(value), (500 + (i % 7)* 50, 615 + j * 15), 'left', 'small')
-                    i += 1
+        # currChargenNoLager = [ch for ch in currChargen if ch['BMG'] not in ['RTL', 'FTL']]
+        # i = 0
+        # for key in ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP']:
+        #     PyGameWrite(key, (500 + i * 50, 600), 'left')
+        #     i += 1
+        # for j, mov in enumerate(currChargenNoLager):
+        #     i = 0
+        #     for key, value in mov.items():
+        #         if key in ['Ch', 'BMG', 'AnZP', 'RZP', 'SB', 'EB', 'AbZP']:
+        #             if value != None and key in ['AnZP', 'RZP','SB', 'EB', 'AbZP']:
+        #                 value = value.strftime('%H:%M')    
+        #             PyGameWrite(str(value), (500 + (i % 7)* 50, 615 + j * 15), 'left', 'small')
+        #             i += 1
+
+        # i = 0
+        # for key in ['BMG', 'SDT', 'EDT']:
+        #     PyGameWrite(key, (1000 + i * 50, 400), 'left')
+        #     i += 1
+        # for j, mov in enumerate(currDowntime):
+        #     i = 0
+        #     for key, value in mov.items():
+        #         if key in ['BMG', 'SDT', 'EDT']:
+        #             if value != None and key in ['SDT', 'EDT']:
+        #                 value = value.strftime('%H:%M')    
+        #             PyGameWrite(str(value), (1000 + (i % 7)* 50, 415 + j * 15), 'left')
+        #             i += 1
+
 
         PyGameDrawCars(currMovements, Time)
         PyGameDrawChargen(currChargen, currDowntime, Time)
