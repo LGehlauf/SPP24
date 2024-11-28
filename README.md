@@ -44,4 +44,9 @@ Notes für Jasper und Leo
     - Reguläre Aufträge sind in der FLF mit der art "PP" (Produktionsprogramm) und zusätzliche Auftrage mit der Art "ZU" (Zusatz) gekennzeichnet
  
 # 21.11.2024 Jasper Bartel 
-- hinzufügen des jupyter NBs Fertigungsauswertung 
+- hinzufügen des jupyter NBs Fertigungsauswertung
+
+# 28.11.2024 Jasper Bartel 
+- Neue Berechnung der OEE
+      - jetzt scheinen die Ergebnisse deutlich realistischer
+  
