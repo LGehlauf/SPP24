@@ -92,6 +92,8 @@ def db_init():
             bmg varchar,
             start_downtime integer,
             end_downtime integer,
+            reststandzeit integer,
+            type text,
             FOREIGN KEY (bmg) REFERENCES betriebsmittel(bmg))''') # weitere Spalten sind zu definieren
 
     # Setze den Startwert von Charge auf 20000000
