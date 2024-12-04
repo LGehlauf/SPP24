@@ -8,8 +8,6 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from collections import defaultdict
-# to do: auslastung der fahrzeuge, anteil an leerfahrten (zb pro Schicht), zurückgelegter Weg
-# fkt mit start und endzeitpunkt -> diagramm
 
 Lines = [   {'StartEnd': ['a', 'c'], 'Distance': 70},
             {'StartEnd': ['a', 'b'], 'Distance': 60},
