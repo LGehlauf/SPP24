@@ -270,6 +270,9 @@ else:
 # Kontinuität
 # Wird die Charge auch immer zum abgegebenem Zeitpunkt von einem ffz wieder aufgenommen?
 
+#To do: unbedingt nochmal die zweite testfunktion anschauen
+#am logging der daten arbeiten! wie speicher ich das?
+
 def Testfunktion2():
     globale_FLF = getFLF(cursor)
     globale_auftraege = getAuftraege(cursor)
@@ -277,7 +280,6 @@ def Testfunktion2():
 
     for auftrag in globale_auftraege:
         Chargennummer = auftrag['charge']
-
 
         # Filtere Einträge für die aktuelle Charge
         charge_flf_entries = [entry for entry in globale_FLF if entry['Charge'] == Chargennummer]
@@ -290,43 +292,58 @@ def Testfunktion2():
             print(f"Keine TLF-Einträge für Charge {Chargennummer}.")
             continue
 
-        for i, flf in enumerate(charge_flf_entries):
+        for flf in charge_flf_entries:
             bmg = flf['bmg']
-            Startknotenvergleich = [tlf for tlf in charge_tlf_entries if tlf['Startknoten'] == bmg]
-            Endknotenvergleich = [tlf for tlf in charge_tlf_entries if tlf['Endknoten'] == bmg]
+            ankunftFLF = flf['ankunft']
+            abtransportFLF = flf['abtransport']
 
-            #RTL prüfung
-            if Startknotenvergleich and bmg == 'RTL':
-                for tlf in Startknotenvergleich:
-                    if flf['ankunft'] is not None and tlf['Startzeitpunkt'] is not None:
-                        ergebnis1 =  tlf['Startzeitpunkt'] -flf['ankunft']
+            # Finde das passende TLF-Eintrag basierend auf Start- oder Endknoten
+            passende_tlf_start = next((tlf for tlf in charge_tlf_entries if tlf['Startknoten'] == bmg), None)
+            passende_tlf_end = next((tlf for tlf in charge_tlf_entries if tlf['Endknoten'] == bmg), None)
+
+            # RTL Prüfung
+            if bmg == 'RTL' and passende_tlf_end:
+                endzeitTLF = passende_tlf_end['Endzeitpunkt']
+                if ankunftFLF and endzeitTLF:
+                    ergebnis1 = endzeitTLF - ankunftFLF
+                    if ergebnis1 != timedelta(0):
+                        print(Chargennummer)
                         print(f"BMG {bmg}, Ergebnis 1: Ankunft - Startzeitpunkt = {ergebnis1}")
+                        print('Endzeit TLF:', endzeitTLF, ' - ', 'Ankunft FLF: ', ankunftFLF)
 
-            #innere knoten 1 prüfen
-            if Endknotenvergleich and bmg not in ['FTL', 'RTL']:
-                for tlf in Endknotenvergleich:
-                    if flf['ankunft'] is not None and tlf['Endzeitpunkt'] is not None:
-                        ergebnis2 = flf['ankunft'] - tlf['Endzeitpunkt']
+            # Innere Knoten 1 prüfen
+            if bmg not in ['FTL', 'RTL'] and passende_tlf_end:
+                endzeitTLF = passende_tlf_end['Endzeitpunkt']
+                if ankunftFLF and endzeitTLF:
+                    ergebnis2 = ankunftFLF - endzeitTLF
+                    if ergebnis2 != timedelta(0):
+                        print(Chargennummer)
                         print(f"BMG {bmg}, Ergebnis 2: Ankunft - Endzeitpunkt = {ergebnis2}")
+                        print('Ankunft FLF:', ankunftFLF, ' - ', 'Endzeit TLF: ', endzeitTLF)
 
-            #innere knoten2 prüfen
-            if Startknotenvergleich and bmg not in ['FTL', 'RTL']:
-                for tlf in Startknotenvergleich:
-                    if flf['abtransport'] is not None and tlf['Startzeitpunkt'] is not None:
-                        ergebnis3 = flf['abtransport'] - tlf['Startzeitpunkt']
+            # Innere Knoten 2 prüfen
+            if bmg not in ['FTL', 'RTL'] and passende_tlf_start:
+                startzeitTLF = passende_tlf_start['Startzeitpunkt']
+                if abtransportFLF and startzeitTLF:
+                    ergebnis3 = abtransportFLF - startzeitTLF
+                    if ergebnis3 != timedelta(0):
+                        print(Chargennummer)
                         print(f"BMG {bmg}, Ergebnis 3: Abtransport - Startzeitpunkt = {ergebnis3}")
+                        print('Abtransport FLF:', abtransportFLF, ' - ', 'Startzeit TLF: ', startzeitTLF)
 
-            #FTL abtransport prüfen
-            if Endknotenvergleich and bmg == 'FTL':
-                for tlf in Endknotenvergleich:
-                    if flf['ankunft'] is not None and tlf['Endzeitpunkt'] is not None:
-                        ergebnis4 = flf['ankunft'] - tlf['Endzeitpunkt']
+            # FTL Abtransport prüfen
+            if bmg == 'FTL' and passende_tlf_end:
+                endzeitTLF = passende_tlf_end['Endzeitpunkt']
+                if ankunftFLF and endzeitTLF:
+                    ergebnis4 = ankunftFLF - endzeitTLF
+                    if ergebnis4 != timedelta(0):
+                        print(Chargennummer)
                         print(f"BMG {bmg}, Ergebnis 4: Ankunft - Endzeitpunkt = {ergebnis4}")
-
+                        print('Ankunft FLF:', ankunftFLF, ' - ', 'Endzeit TLF: ', endzeitTLF)
 
 if globale_auftraege is not None and globale_TLF is not None and globale_arbeitsplaene is not None:
     Testfunktion2()
-    print('Testfunktion2 inaktiv')
+    #print('Testfunktion2 inaktiv')
 
 
 ####3. Testfunktion:
