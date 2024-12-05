@@ -47,6 +47,7 @@ def calc_distances(route):
         ('g', 'h'): 45,
         ('e', 'h'): 55
     }
+
     for (start, ziel), distanz in list(Distances.items()): # hin und zurück ...
         Distances[(ziel, start)] = distanz
 
@@ -61,8 +62,10 @@ def drawPlots(AuswTLF):
     fig, axes = plt.subplots(nrows=rows, ncols = columns, figsize = (3 * columns, 3 * rows))
     axes = axes.flatten()
     
-    for col_idx, (ffz, categories) in enumerate(AuswTLF.items()):
     
+
+    for col_idx, (ffz, categories) in enumerate(AuswTLF.items()):
+        
         labels = list(categories.keys())
         values = list(categories.values())
     
@@ -73,28 +76,14 @@ def drawPlots(AuswTLF):
         axes[col_idx + columns].set_title(f"{ffz} - Wege")
         axes[col_idx + columns].pie([values[2], values[3]], labels=[labels[2], labels[3]], autopct='%1.1f%%')
 
+        # colors = ['red' if pd.isna(value) else 'blue' for value in nTLF[key]['charge']] 
+        x = nTLF[ffz]['startzeitpunkt'].to_numpy()
+        y = nTLF[ffz]['KumDistance'].to_numpy()
+        z = pd.to_numeric(nTLF[ffz]['charge'], errors='coerce').to_numpy()
+        is_nan = np.isnan(z)
         axes[col_idx + 2 * columns].set_title(f"{ffz} - Strecke")
-        axes[col_idx + 2 * columns].scatter(
-            nTLF[ffz]['startzeitpunkt'],
-            np.where(
-                nTLF[ffz]['charge'] != None,
-                nTLF[ffz]['KumDistance'],
-                None
-            )
-            , color="red")
-        axes[col_idx + 2 * columns].plot(
-            np.where(
-                nTLF[ffz]['charge'] == None,
-                nTLF[ffz]['startzeitpunkt'],
-                None
-            ),
-            np.where(
-                nTLF[ffz]['charge'] == None,
-                nTLF[ffz]['KumDistance'],
-                None
-            )
-            , color="blue")
-        
+        axes[col_idx + 2 * columns].scatter(x, y, color="red")
+        axes[col_idx + 2 * columns].scatter(x, np.where(is_nan, y, np.nan), color = "blue")
         # Titel für das gesamte Diagramm
     plt.suptitle(f"start:  {startzeitpunkt} \nende: {endzeitpunkt}", fontsize=14)
 
