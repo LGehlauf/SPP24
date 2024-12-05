@@ -14,8 +14,8 @@ import matplotlib.colors as mcolors
 # fkt mit start und endzeitpunkt -> diagramm
 
 
-startzeitpunkt =    datetime.strptime("2020-10-01 18:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
-endzeitpunkt =      datetime.strptime("2024-10-10 18:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
+startzeitpunkt =    datetime.strptime("2024-01-01 12:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
+endzeitpunkt =      datetime.strptime("2024-01-03 23:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
 
 
 def getTLF():
@@ -25,7 +25,13 @@ def getTLF():
     TLF['endzeitpunkt'] = pd.to_datetime(TLF['endzeitpunkt'], format='mixed', errors='raise')
     TLF = TLF[TLF['startzeitpunkt'].between(startzeitpunkt, endzeitpunkt, inclusive='both')] # only in given timeframe!
     # a = 0
-    return TLF
+    TLF['Distance'] = TLF['route'].apply(calc_distances)
+    TLF['KumDistance'] = TLF.groupby('FFZ_id')['Distance'].cumsum()
+    print(TLF.head())
+    
+    nTLF = {key: gruppe_df for key, gruppe_df in TLF.groupby('FFZ_id') }
+
+    return nTLF
     
 def calc_distances(route):    
     Distances = {
@@ -41,6 +47,7 @@ def calc_distances(route):
         ('g', 'h'): 45,
         ('e', 'h'): 55
     }
+
     for (start, ziel), distanz in list(Distances.items()): # hin und zurück ...
         Distances[(ziel, start)] = distanz
 
@@ -49,38 +56,68 @@ def calc_distances(route):
     return sum(Distances.get(strecke, 0) for strecke in strecken)
 
 
-def drawPlots():
-    rows = 2
-    columns = 3# AuswTLF.len()
+def drawPlots(AuswTLF):
+    rows = 3
+    columns = len(AuswTLF)
     fig, axes = plt.subplots(nrows=rows, ncols = columns, figsize = (3 * columns, 3 * rows))
-    for ax in axes.ravel():
-        ax.pie(Aus)
+    axes = axes.flatten()
+    
+    
+
+    for col_idx, (ffz, categories) in enumerate(AuswTLF.items()):
+        
+        labels = list(categories.keys())
+        values = list(categories.values())
+    
+        axes[col_idx].set_title(f"{ffz} - Fahrten")
+        axes[col_idx].pie([values[0], values[1]], labels=[labels[0], labels[1]], autopct='%1.1f%%')
+        
+        # Zweites Piechart (Zeile 2)
+        axes[col_idx + columns].set_title(f"{ffz} - Wege")
+        axes[col_idx + columns].pie([values[2], values[3]], labels=[labels[2], labels[3]], autopct='%1.1f%%')
+
+        # colors = ['red' if pd.isna(value) else 'blue' for value in nTLF[key]['charge']] 
+        x = nTLF[ffz]['startzeitpunkt'].to_numpy()
+        y = nTLF[ffz]['KumDistance'].to_numpy()
+        z = pd.to_numeric(nTLF[ffz]['charge'], errors='coerce').to_numpy()
+        is_nan = np.isnan(z)
+        axes[col_idx + 2 * columns].set_title(f"{ffz} - Strecke")
+        axes[col_idx + 2 * columns].scatter(x, y, color="red")
+        axes[col_idx + 2 * columns].scatter(x, np.where(is_nan, y, np.nan), color = "blue")
+        # Titel für das gesamte Diagramm
+    plt.suptitle(f"start:  {startzeitpunkt} \nende: {endzeitpunkt}", fontsize=14)
+
+    # Layout anpassen
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Platz für den Titel lassen
+    
+    plt.show()
+
     a = 0
 
-TLF = getTLF()
-TLF['Distance'] = TLF['route'].apply(calc_distances)
 
-b =  TLF.groupby('FFZ_id') 
 
-nTLF = {key: gruppe_df for key, gruppe_df in TLF.groupby('FFZ_id') }
+
+nTLF = getTLF()
 
 AuswTLF = {key: {
-    'fahrten': None, 
+    'lastfahrten': None, 
     'leerfahrten': None,
-    'gesamter_weg': None,
+    'lastweg': None,
     'leerweg': None
     } for key, _ in nTLF.items()}
 
 for key, ffzTLF in nTLF.items():
-    print(key)
-    AuswTLF[key]['fahrten'] = ffzTLF.shape[0]
+    # print(key)
+    AuswTLF[key]['lastfahrten'] = ffzTLF['charge'].notnull().sum()
     AuswTLF[key]['leerfahrten'] = ffzTLF['charge'].isnull().sum()
-    AuswTLF[key]['gesamter_weg'] = ffzTLF['Distance'].sum()
-    AuswTLF[key]['leerweg'] = ffzTLF.loc[ffzTLF['charge'].notna(), 'Distance'].sum()
+    AuswTLF[key]['lastweg'] = ffzTLF.loc[ffzTLF['charge'].notnull(), 'Distance'].sum()
+    AuswTLF[key]['leerweg'] = ffzTLF.loc[ffzTLF['charge'].isnull(), 'Distance'].sum()
+    # print(ffzTLF.loc[ffzTLF['charge'].notnull(), 'Distance'])
+    # print()
     
-    print()
-    
-drawPlots()
+a = 0
+
+drawPlots(AuswTLF)
 
 
 #print(TLF.loc[339,:])
