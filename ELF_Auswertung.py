@@ -5,9 +5,7 @@
 from datetime import datetime, timedelta
 import re
 import sqlite3
-import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 
 globale_ELF_nomaintenance = None
 globale_ELF_planned = None
@@ -119,26 +117,35 @@ def getELF3():
 
 
 #####PLOTS:
-def create_subplot_plot(ax, data, labels, plot_type='bar', title='Diagramm', xlabel='X-Achse', ylabel='Y-Achse'):
+def create_subplot_plot(ax, data, labels, plot_type='bar', title='Diagramm', xlabel='X-Achse', ylabel='Y-Achse', stacked_data=None):
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
-    if plot_type == 'bar':  # Balkendiagramm
-        bars = ax.bar(labels, data, color='skyblue')
-        # Füge die Werte über den Balken hinzu
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height + 0.0001* height,  # Position für den Text
-                    f'{height:.2f}',  # Text: Wert des Balkens (zwei Dezimalstellen)
-                    ha='center',  # Horizontalalignment: Center
-                    va='bottom',  # Verticalalignment: Unten (damit der Text über dem Balken erscheint)
-                    fontsize=10)  # Schriftgröße
+    if plot_type == 'bar':
+        if stacked_data is None:
+            # Fuer Plots 1,3 und 4
+            bars = ax.bar(labels, data, color='skyblue')
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0:
+                    ax.text(bar.get_x() + bar.get_width() / 2, height + 0.001, f'{height:.2f}',
+                            ha='center', va='bottom', fontsize=10)
+        else:
+            # Gestapeltes Balkendiagramm
+            # Fuer PLot 2
+            bars1 = ax.bar(labels, data, color='skyblue', label='Geplante Downtime')
+            ax.bar(labels, stacked_data, bottom=data, color='orange', label='Ungeplante Downtime')
+            ax.legend()
+
+            for i, bar in enumerate(bars1):
+                height = bar.get_height()
+                if height > 0:
+                    ax.text(bar.get_x() + bar.get_width() / 2, height + 0.5, f'{height:.2f}%',
+                            ha='center', va='bottom', fontsize=10)
 
     else:
         raise ValueError(f"Unbekannter Plot-Typ: {plot_type}")
-
-
 
 def rst(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive,ax):
     def berechne_summe(ELF):
@@ -149,9 +156,9 @@ def rst(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive,a
     summe_predictive = berechne_summe(globale_ELF_predictive)
 
     max_summe = max(summe_nomaintenance, summe_planned, summe_predictive)
-    print(f"Summe der Reststandzeit - No Maintenance: {summe_nomaintenance}")
-    print(f"Summe der Reststandzeit - Planned: {summe_planned}")
-    print(f"Summe der Reststandzeit - Predictive: {summe_predictive}")
+    print("Summe der Reststandzeit bei No Maintenance: ",summe_nomaintenance, "Min")
+    print("Summe der Reststandzeit bei Planned: ",summe_planned, "Min")
+    print("Summe der Reststandzeit bei Predictive: ",summe_predictive, "Min")
 
     if max_summe == summe_nomaintenance:
         print("Die Summe der Reststandzeit ist bei 'No Maintenance' am höchsten.")
@@ -159,6 +166,8 @@ def rst(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive,a
         print("Die Summe der Reststandzeit ist bei 'Planned' am höchsten.")
     elif max_summe == summe_predictive:
         print("Die Summe der Reststandzeit ist bei 'Predictive' am höchsten.")
+
+    print("-----------------")
 
     # 1. Plot:
     labels = ['No Maintenance', 'Planned', 'Predictive']
@@ -168,7 +177,7 @@ def rst(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive,a
     ax.set_ylim(1, 1000000)
 
     create_subplot_plot(ax, data, labels, plot_type='bar', title='Summe der Reststandzeiten', xlabel='',
-                        ylabel='Reststandzeit (Minuten)')
+                        ylabel='Reststandzeit [Min]', stacked_data=None)
 
     return summe_nomaintenance, summe_planned, summe_predictive
 
@@ -196,7 +205,8 @@ def vergleiche_type_prozent(ax):
     planned_prozent = berechne_type_prozent(elf_planned)
     predictive_prozent = berechne_type_prozent(elf_predictive)
 
-    print("Anteil von 'planed' und 'unplaned' für die drei ELFs:")
+    print("\n")
+    print("Anteil von 'planned' und 'unplanned' für die drei ELFs:")
     print("\nNo Maintenance ELF:")
     print(f"Planed: {nomaintenance_prozent['planed']:.2f}%")
     print(f"Unplaned: {nomaintenance_prozent['unplaned']:.2f}%")
@@ -209,36 +219,18 @@ def vergleiche_type_prozent(ax):
     print(f"Planed: {predictive_prozent['planed']:.2f}%")
     print(f"Unplaned: {predictive_prozent['unplaned']:.2f}%")
 
+    print("-----------------")
+
     # 2. Plot
+    # gestapeltes Balkendiagramm
     labels = ['No Maintenance', 'Planned', 'Predictive']
     planed_data = [nomaintenance_prozent['planed'], planned_prozent['planed'], predictive_prozent['planed']]
     unplaned_data = [nomaintenance_prozent['unplaned'], planned_prozent['unplaned'], predictive_prozent['unplaned']]
 
-    # Erstelle die Balken für geplante und ungeplante Downtime
-    bars1 = ax.bar(labels, planed_data, color='skyblue', label='Geplante Downtime')
-    bars2 = ax.bar(labels, unplaned_data, bottom=planed_data, color='orange', label='Ungeplante Downtime')
-
-    # Setze Achsenbeschriftungen und Titel
-    ax.set_xlabel('')
-    ax.set_ylabel('Prozent (%)')
-    ax.set_title('Vergleich geplanter und ungeplanter Downtime')
-    ax.legend()
-
-    # Füge die Prozentzahlen über den Balken hinzu
-    for i, bar in enumerate(bars1):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, height + 0.5, f'{height:.2f}%',
-                ha='center', va='bottom', fontsize=10)
-
-    for i, bar in enumerate(bars2):
-        # Höhe des gestapelten Balkens: Summe der beiden (geplante + ungeplante)
-        height = bar.get_height() + planed_data[i]
-        ax.text(bar.get_x() + bar.get_width() / 2, height + 0.5, f'{height:.2f}%',
-                ha='center', va='bottom', fontsize=10)
-
+    create_subplot_plot(ax, planed_data, labels, plot_type='bar', title='Vergleich geplanter und ungeplanter Downtime',
+                        xlabel='', ylabel='Downtime [%]', stacked_data=unplaned_data)
 
 #3. Vergleiche Downtimeee
-
 def berechne_downtime(elf_data):
     downtime_list = []
     for entry in elf_data:
@@ -259,26 +251,25 @@ def vergleiche_downtime(ax1,ax2):
     elf_planned = getELF2()
     elf_predictive = getELF3()
 
-    # Berechnungen durchführen
     nomaintenance_downtime = berechne_downtime(elf_nomaintenance)
     planned_downtime = berechne_downtime(elf_planned)
     predictive_downtime = berechne_downtime(elf_predictive)
-
-    # Durchschnittliche Downtime für jedes ELF berechnen
     def durchschnittliche_downtime(downtime_list):
         if downtime_list:
             return sum(downtime_list) / len(downtime_list)
         return 0
 
-    nomaintenance_avg = durchschnittliche_downtime(nomaintenance_downtime)
-    planned_avg = durchschnittliche_downtime(planned_downtime)
-    predictive_avg = durchschnittliche_downtime(predictive_downtime)
+    nomaintenance_avg = round(durchschnittliche_downtime(nomaintenance_downtime),2)
+    planned_avg = round(durchschnittliche_downtime(planned_downtime),2)
+    predictive_avg = round(durchschnittliche_downtime(predictive_downtime),2)
     summe_nomaintenance = sum(nomaintenance_downtime)
     summe_planned = sum(planned_downtime)
     summe_predictive = sum(predictive_downtime)
 
     verbesserung_planned = round((1 - (summe_planned / summe_nomaintenance))*100,2)
     verbesserung_predictive = round((1- (summe_predictive / summe_nomaintenance))*100,2)
+
+    print("\n")
 
     # Ergebnisse ausgeben
     print("Durchschnittliche Downtime (in Minuten) für die drei ELFs:")
@@ -296,22 +287,20 @@ def vergleiche_downtime(ax1,ax2):
     print("Downtime insgesamt:", summe_predictive, "Minuten")
     print("Verbesserung:", verbesserung_predictive, "%")
 
+    print("-----------------")
+
     # 3. Plot
     # Durchschnittliche Downtime
     avg_downtime = [nomaintenance_avg, planned_avg, predictive_avg]
     labels = ['No Maintenance', 'Planned', 'Predictive']
     create_subplot_plot(ax1, avg_downtime, labels, plot_type='bar', title='Durchschnittliche Downtime', xlabel='',
-                        ylabel='Durchschnittliche Downtime (Minuten)')
+                        ylabel='Durchschnittliche Downtime [Min]', stacked_data=None)
     # 4. Plot
     # Gesamte Downtime
     total_downtime = [summe_nomaintenance, summe_planned, summe_predictive]
     ax2.bar(labels, total_downtime, color='orange')
     create_subplot_plot(ax2, total_downtime, labels, plot_type='bar', title='Gesamte Downtime', xlabel='',
-                        ylabel='Gesamte Downtime (Minuten)')
-
-
-
-
+                        ylabel='Gesamte Downtime [Min]', stacked_data=None)
 
 globale_ELF_nomaintenance = getELF1()
 globale_ELF_planned = getELF2()
@@ -320,21 +309,13 @@ globale_ELF_predictive = getELF3()
 def zeige_alle_plots(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive):
     # Erstelle Subplots: 2 Reihen und 2 Spalten
     fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-
-    # Erstelle den ersten Plot (Summe der Reststandzeiten)
+    fig.subplots_adjust(wspace=0.3, hspace=0.3)
+    # 1. Plot
     rst(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive, axs[0, 0])
-
-    # Erstelle den zweiten Plot (Vergleich von "planed" und "unplaned")
+    # 2. Plot
     vergleiche_type_prozent(axs[0, 1])
-
-    # Erstelle den dritten und vierten Plot (Durchschnittliche und gesamte Downtime)
+    # 3. und 4. Plot
     vergleiche_downtime(axs[1, 0], axs[1, 1])
-
-    # Zeige alle Plots an
-    plt.tight_layout()  # Für ein besseres Layout der Subplots
     plt.show()
 
 zeige_alle_plots(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive)
-
-
-
