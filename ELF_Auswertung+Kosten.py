@@ -16,6 +16,27 @@ device_costs = {
     "HAE": 10
 }
 
+# Standzeiten und Kosten pro Maschine
+standzeiten = {
+    "FRA": 50,   # Stunden
+    "DRH1": 60,  # Stunden
+    "DRH2": 60,  # Stunden
+    "HAE": 100   # Stunden
+}
+
+kostensaetze = {
+    "FRA": 2000,  # Euro
+    "DRH1": 5000, # Euro
+    "DRH2": 5000, # Euro
+    "HAE": 1000   # Euro
+}
+
+# Kosten pro Stunde
+kosten_pro_stunde = {
+    maschine: kostensaetze[maschine] / standzeiten[maschine]
+    for maschine in standzeiten
+}
+
 def parse_datetime(datums_string):
     for format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
         try:
@@ -118,7 +139,61 @@ def getELF3():
         globale_ELF_predictive = ELF
         return ELF
     finally:
-        conn.close()        
+        conn.close()
+
+def berechne_kosten_reststandzeiten(elf_data):
+    kosten_pro_maschine2 = {maschine: 0 for maschine in standzeiten.keys()}
+    gesamt_kosten2 = 0
+
+    for entry in elf_data:
+        maschine = entry['bmg']
+        reststandzeit = entry['reststandzeit']
+
+        if maschine in kosten_pro_stunde and reststandzeit:
+            kosten = reststandzeit / 60 * kosten_pro_stunde[maschine]  # Reststandzeit in Stunden
+            kosten_pro_maschine2[maschine] += kosten
+            gesamt_kosten2 += kosten
+
+    kosten_pro_maschine2 = {maschine: round(kosten, 2) for maschine, kosten in kosten_pro_maschine2.items()}
+    gesamt_kosten2 = round(gesamt_kosten2, 2)
+
+
+
+    return gesamt_kosten2, kosten_pro_maschine2
+
+def vergleiche_kosten_reststandzeiten(ax):
+    elf_nomaintenance = getELF1()
+    elf_planned = getELF2()
+    elf_predictive = getELF3()
+
+    kosten_nomaintenance, kosten_pro_maschine_nomaintenance = berechne_kosten_reststandzeiten(elf_nomaintenance)
+    kosten_planned, kosten_pro_maschine_planned = berechne_kosten_reststandzeiten(elf_planned)
+    kosten_predictive, kosten_pro_maschine_predictive = berechne_kosten_reststandzeiten(elf_predictive)
+
+    print("\nKosten für die Reststandzeiten der drei ELFs:")
+    print("\nNo Maintenance ELF:")
+    print(f"Gesamtkosten: {kosten_nomaintenance:.2f} €")
+    print(f"Kosten pro Maschine: {kosten_pro_maschine_nomaintenance}")
+
+    print("\nPlanned ELF:")
+    print(f"Gesamtkosten: {kosten_planned:.2f} €")
+    print(f"Kosten pro Maschine: {kosten_pro_maschine_planned}")
+
+    print("\nPredictive ELF:")
+    print(f"Gesamtkosten: {kosten_predictive:.2f} €")
+    print(f"Kosten pro Maschine: {kosten_pro_maschine_predictive}")
+
+    print("-----------------")
+
+    ax.set_yscale('log')
+    ax.set_ylim(1, 1000000)
+
+    labels = ['No Maintenance', 'Planned', 'Predictive']
+    gesamt_kosten2 = [kosten_nomaintenance, kosten_planned, kosten_predictive]
+    create_subplot_plot(ax, gesamt_kosten2, labels, plot_type='bar',
+                        title='Vergleich der Gesamtkosten durch Reststandzeit', xlabel='', ylabel='Kosten [€]')
+
+
 
 #####PLOTS:
 def create_subplot_plot(ax, data, labels, plot_type='bar', title='Diagramm', xlabel='X-Achse', ylabel='Y-Achse', stacked_data=None):
@@ -133,7 +208,7 @@ def create_subplot_plot(ax, data, labels, plot_type='bar', title='Diagramm', xla
             for bar in bars:
                 height = bar.get_height()
                 if height > 0:
-                    ax.text(bar.get_x() + bar.get_width() / 2, height + 0.001, f'{height:.2f}',
+                    ax.text(bar.get_x() + bar.get_width() / 2, height + 0.01, f'{height:.2f}',
                             ha='center', va='bottom', fontsize=10)
         else:
             # Gestapeltes Balkendiagramm
@@ -360,6 +435,8 @@ def vergleiche_kosten(ax):
     print(f"Gesamtkosten: {kosten_predictive:.2f} €")
     print(f"Kosten pro Maschine: {kosten_pro_maschine_predictive} ")
 
+    print("-----------------")
+
     # 5. Plot - Kostenvergleich
     labels = ['No Maintenance', 'Planned', 'Predictive']
     gesamt_kosten = [kosten_nomaintenance, kosten_planned, kosten_predictive]
@@ -385,8 +462,10 @@ def zeige_alle_plots(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF
     # 5. Plot
     vergleiche_kosten(axs[2, 0])
 
+    vergleiche_kosten_reststandzeiten(axs[2,1])
+
     # Leeren Subplot entfernen
-    fig.delaxes(axs[2, 1])
+    #fig.delaxes(axs[2, 1])
     plt.show()
 
 zeige_alle_plots(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF_predictive)
