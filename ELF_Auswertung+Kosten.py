@@ -18,10 +18,10 @@ device_costs = {
 
 # Standzeiten und Kosten pro Maschine
 standzeiten = {
-    "FRA": 50,   # Stunden
-    "DRH1": 60,  # Stunden
-    "DRH2": 60,  # Stunden
-    "HAE": 100   # Stunden
+    "FRA": 250,   # Stunden
+    "DRH1": 300,  # Stunden
+    "DRH2": 300,  # Stunden
+    "HAE": 500   # Stunden
 }
 
 kostensaetze = {
