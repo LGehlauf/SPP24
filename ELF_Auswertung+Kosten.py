@@ -25,10 +25,10 @@ standzeiten = {
 }
 
 kostensaetze = {
-    "FRA": 2000,  # Euro
-    "DRH1": 5000, # Euro
-    "DRH2": 5000, # Euro
-    "HAE": 1000   # Euro
+    "FRA": 200,  # Euro
+    "DRH1": 500, # Euro
+    "DRH2": 500, # Euro
+    "HAE": 100   # Euro
 }
 
 # Kosten pro Stunde
@@ -142,8 +142,8 @@ def getELF3():
         conn.close()
 
 def berechne_kosten_reststandzeiten(elf_data):
-    kosten_pro_maschine2 = {maschine: 0 for maschine in standzeiten.keys()}
-    gesamt_kosten2 = 0
+    kosten_pro_maschine_rst = {maschine: 0 for maschine in standzeiten.keys()}
+    gesamt_kosten_rst = 0
 
     for entry in elf_data:
         maschine = entry['bmg']
@@ -151,15 +151,15 @@ def berechne_kosten_reststandzeiten(elf_data):
 
         if maschine in kosten_pro_stunde and reststandzeit:
             kosten = reststandzeit / 60 * kosten_pro_stunde[maschine]  # Reststandzeit in Stunden
-            kosten_pro_maschine2[maschine] += kosten
-            gesamt_kosten2 += kosten
+            kosten_pro_maschine_rst[maschine] += kosten
+            gesamt_kosten_rst += kosten
 
-    kosten_pro_maschine2 = {maschine: round(kosten, 2) for maschine, kosten in kosten_pro_maschine2.items()}
-    gesamt_kosten2 = round(gesamt_kosten2, 2)
+    kosten_pro_maschine_rst = {maschine: round(kosten, 2) for maschine, kosten in kosten_pro_maschine_rst.items()}
+    gesamt_kosten_rst = round(gesamt_kosten_rst, 2)
 
 
 
-    return gesamt_kosten2, kosten_pro_maschine2
+    return gesamt_kosten_rst, kosten_pro_maschine_rst
 
 def vergleiche_kosten_reststandzeiten(ax):
     elf_nomaintenance = getELF1()
@@ -189,8 +189,8 @@ def vergleiche_kosten_reststandzeiten(ax):
     ax.set_ylim(1, 1000000)
 
     labels = ['No Maintenance', 'Planned', 'Predictive']
-    gesamt_kosten2 = [kosten_nomaintenance, kosten_planned, kosten_predictive]
-    create_subplot_plot(ax, gesamt_kosten2, labels, plot_type='bar',
+    gesamt_kosten_rst = [kosten_nomaintenance, kosten_planned, kosten_predictive]
+    create_subplot_plot(ax, gesamt_kosten_rst, labels, plot_type='bar',
                         title='Vergleich der Gesamtkosten durch Reststandzeit', xlabel='', ylabel='Kosten [€]')
 
 
@@ -442,6 +442,7 @@ def vergleiche_kosten(ax):
     gesamt_kosten = [kosten_nomaintenance, kosten_planned, kosten_predictive]
     create_subplot_plot(ax, gesamt_kosten, labels, plot_type='bar',
                         title='Vergleich der Gesamtkosten durch Downtime', xlabel='', ylabel='Kosten [€]')
+
     
 
 globale_ELF_nomaintenance = getELF1()

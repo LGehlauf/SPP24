@@ -110,7 +110,7 @@ for i, (experiment_name, oee_per_machine) in enumerate(oee_ergebnisse):
     axs[i].bar(oee_per_machine.index, oee_per_machine.values, color='skyblue', edgecolor='black')
     axs[i].set_title(f"OEE pro Maschine ({experiment_name})")
     axs[i].set_xlabel("Maschine")
-    axs[i].set_ylabel("OEE (%)")
+    axs[i].set_ylabel("OEE")
     axs[i].set_ylim(0, 1)
 
     # Hinzufügen von Text für die OEE-Werte
