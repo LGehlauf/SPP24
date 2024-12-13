@@ -443,7 +443,56 @@ def vergleiche_kosten(ax):
     create_subplot_plot(ax, gesamt_kosten, labels, plot_type='bar',
                         title='Vergleich der Gesamtkosten durch Downtime', xlabel='', ylabel='Kosten [€]')
 
-    
+
+def berechne_gesamtkosten(elf_data):
+    """
+    Berechnet die Gesamtkosten aus den Stillstandszeit-Kosten und den übrigen Reststandzeit-Kosten.
+    """
+    # Stillstandszeitkosten berechnen
+    gesamt_kosten_downtime, kosten_pro_maschine_downtime = berechne_kosten(elf_data)
+
+    # Kosten durch Reststandzeit berechnen
+    gesamt_kosten_rst, kosten_pro_maschine_rst = berechne_kosten_reststandzeiten(elf_data)
+
+    return gesamt_kosten_downtime, gesamt_kosten_rst, gesamt_kosten_downtime + gesamt_kosten_rst
+
+def darstellung_gesamtkosten():
+    """
+    Erstellt ein Balkendiagramm, das die Gesamtkosten sowie die Anteile für Stillstandszeit und Reststandzeit zeigt.
+    """
+    elf_nomaintenance = getELF1()
+    elf_planned = getELF2()
+    elf_predictive = getELF3()
+
+    labels = ['No Maintenance', 'Planned', 'Predictive']
+    kosten_downtime = []
+    kosten_rst = []
+    gesamt_kosten = []
+
+    for elf_data in [elf_nomaintenance, elf_planned, elf_predictive]:
+        kosten_dt, kosten_rst_ind, gesamt = berechne_gesamtkosten(elf_data)
+        kosten_downtime.append(kosten_dt)
+        kosten_rst.append(kosten_rst_ind)
+        gesamt_kosten.append(gesamt)
+
+    # Balkendiagramm erstellen
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Gestapelte Balken
+    bars_downtime = ax.bar(labels, kosten_downtime, color='blue', label='Kosten für Stillstandszeit')
+    bars_rst = ax.bar(labels, kosten_rst, bottom=kosten_downtime, color='orange', label='Kosten durch Reststandzeit')
+
+    # Werte oberhalb der Balken anzeigen
+    for i, bar in enumerate(bars_rst):
+        height = bar.get_height() + bars_downtime[i].get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, height, f"{gesamt_kosten[i]:.2f} €",
+                ha='center', va='bottom', fontsize=10)
+
+    # Diagramm anpassen
+    ax.set_title('Gesamtkosten mit Anteil der Stillstandszeit und Reststandzeit', fontsize=14)
+    ax.set_ylabel('Kosten (€)', fontsize=12)
+    ax.legend()
+
 
 globale_ELF_nomaintenance = getELF1()
 globale_ELF_planned = getELF2()
@@ -464,6 +513,8 @@ def zeige_alle_plots(globale_ELF_nomaintenance, globale_ELF_planned, globale_ELF
     vergleiche_kosten(axs[2, 0])
 
     vergleiche_kosten_reststandzeiten(axs[2,1])
+
+    darstellung_gesamtkosten()
 
     # Leeren Subplot entfernen
     #fig.delaxes(axs[2, 1])
