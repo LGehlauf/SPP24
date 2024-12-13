@@ -479,7 +479,7 @@ def darstellung_gesamtkosten():
     fig, ax = plt.subplots(figsize=(10, 6))
 
     # Gestapelte Balken
-    bars_downtime = ax.bar(labels, kosten_downtime, color='blue', label='Kosten für Stillstandszeit')
+    bars_downtime = ax.bar(labels, kosten_downtime, color='skyblue', label='Kosten für Stillstandszeit')
     bars_rst = ax.bar(labels, kosten_rst, bottom=kosten_downtime, color='orange', label='Kosten durch Reststandzeit')
 
     # Werte oberhalb der Balken anzeigen
