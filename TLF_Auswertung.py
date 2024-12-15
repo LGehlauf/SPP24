@@ -14,7 +14,7 @@ import matplotlib.colors as mcolors
 # fkt mit start und endzeitpunkt -> diagramm
 
 
-startzeitpunkt =    datetime.strptime("2024-01-01 12:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
+startzeitpunkt =    datetime.strptime("2024-01-01 06:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
 endzeitpunkt =      datetime.strptime("2024-01-03 23:00:00.000000", "%Y-%m-%d %H:%M:%S.%f")
 
 
@@ -26,10 +26,28 @@ def getTLF():
     TLF = TLF[TLF['startzeitpunkt'].between(startzeitpunkt, endzeitpunkt, inclusive='both')] # only in given timeframe!
     # a = 0
     TLF['Distance'] = TLF['route'].apply(calc_distances)
+    # print(TLF.groupby('FFZ_id').head())
     TLF['KumDistance'] = TLF.groupby('FFZ_id')['Distance'].cumsum()
-    print(TLF.head())
+    aTLF = TLF.drop('endzeitpunkt', axis='columns')
+    bTLF = TLF.drop('startzeitpunkt', axis='columns')
+
+    aTLF['Aktion'] = "start"
+    aTLF = aTLF.rename(columns= {'startzeitpunkt': 'zeitpunkt'})
+    aTLF['KumDistance'] = aTLF['KumDistance'] - aTLF['Distance']
+    bTLF['Aktion'] = "ende"
+    bTLF = bTLF.rename(columns= {'endzeitpunkt': 'zeitpunkt'})
+
+    TLF = pd.concat([aTLF, bTLF])
+    TLF = TLF.sort_values(by=["zeitpunkt", 'Aktion']) # sortiert erst nach zeitpunkt, dass nach aktion (also ['start', 'ende']), ende soll vor anfang kommen und ist alphabetisch vor start (zum glück)
+    
+    TLF = TLF.head(100)
+
+    # print(TLF.head(n=20))
+    # print(aTLF.head())
     
     nTLF = {key: gruppe_df for key, gruppe_df in TLF.groupby('FFZ_id') }
+    for key, tlf in nTLF.items():
+        print(key, tlf, sep="\n")
 
     return nTLF
     
@@ -57,9 +75,11 @@ def calc_distances(route):
 
 
 def drawPlots(AuswTLF):
+    cmap = cm.get_cmap('viridis')
+    colors = cmap([0.4, 1.0])
     rows = 3
     columns = len(AuswTLF)
-    fig, axes = plt.subplots(nrows=rows, ncols = columns, figsize = (3 * columns, 3 * rows))
+    fig, axes = plt.subplots(nrows=rows, ncols = columns, figsize = (3 * columns, 1.5 * rows))
     axes = axes.flatten()
     
     
@@ -70,26 +90,33 @@ def drawPlots(AuswTLF):
         values = list(categories.values())
     
         axes[col_idx].set_title(f"{ffz} - Fahrten")
-        axes[col_idx].pie([values[0], values[1]], labels=[labels[0], labels[1]], autopct='%1.1f%%')
+        axes[col_idx].pie([values[0], values[1]], labels=[labels[0], labels[1]], autopct='%1.1f%%', colors=colors)
         
         # Zweites Piechart (Zeile 2)
         axes[col_idx + columns].set_title(f"{ffz} - Wege")
-        axes[col_idx + columns].pie([values[2], values[3]], labels=[labels[2], labels[3]], autopct='%1.1f%%')
+        axes[col_idx + columns].pie([values[2], values[3]], labels=[labels[2], labels[3]], autopct='%1.1f%%', colors=colors)
 
         # colors = ['red' if pd.isna(value) else 'blue' for value in nTLF[key]['charge']] 
-        x = nTLF[ffz]['startzeitpunkt'].to_numpy()
+        x = nTLF[ffz]['zeitpunkt'].to_numpy()
         y = nTLF[ffz]['KumDistance'].to_numpy()
         z = pd.to_numeric(nTLF[ffz]['charge'], errors='coerce').to_numpy()
         is_nan = np.isnan(z)
         axes[col_idx + 2 * columns].set_title(f"{ffz} - Strecke")
-        axes[col_idx + 2 * columns].scatter(x, y, color="red")
-        axes[col_idx + 2 * columns].scatter(x, np.where(is_nan, y, np.nan), color = "blue")
+        axes[col_idx + 2 * columns].plot(x, np.where(is_nan, np.nan, y), color = colors[0])
+        axes[col_idx + 2 * columns].plot(x, np.where(is_nan, y, np.nan), color = colors[1])
+        locator = mdates.AutoDateLocator(maxticks=5, minticks=3)
+        formatter = mdates.DateFormatter("%H:%M")
+        axes[col_idx + 2 * columns].xaxis.set_major_locator(locator)
+        axes[col_idx + 2 * columns].xaxis.set_major_formatter(formatter)
+        
+
         # Titel für das gesamte Diagramm
+    
     plt.suptitle(f"start:  {startzeitpunkt} \nende: {endzeitpunkt}", fontsize=14)
 
     # Layout anpassen
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # Platz für den Titel lassen
-    
+    # plt.get_current_fig_manager().full_screen_toggle()
     plt.show()
 
     a = 0
