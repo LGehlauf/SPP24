@@ -2,7 +2,7 @@ def db_init():
     import sqlite3
 
     # neue Datenbank erstellen
-    conn = sqlite3.connect('prod_data_predictive_maintenance.db')
+    conn = sqlite3.connect('prod_data_variante_III.db')
     cursor = conn.cursor()
 
     # Tabellen löschen, falls sie existieren
