@@ -5,7 +5,7 @@ import pandas as pd
 
 # returns a dict containing the total driven distance and the driven distance while empty of each ffz
 # also the total mean waiting time from all charges as a difference of "ende bearbeitung" and "abtransport"  
-def calc_KPIs(path_to_db: str) -> dict[str, ]:
+def calc_KPIs(path_to_db: str) -> dict:
     TLF = getTLF(path_to_db)
     singleDistances = { key : 
         {
