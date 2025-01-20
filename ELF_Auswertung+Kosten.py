@@ -18,13 +18,15 @@ device_costs = {
 
 # Standzeiten und Kosten pro Maschine
 standzeiten = {
-    "FRA": 250,   # Stunden
-    "DRH1": 300,  # Stunden
-    "DRH2": 300,  # Stunden
-    "HAE": 500   # Stunden
+    "SAE" : 850,
+    "FRA": 880,   # Stunden
+    "DRH1": 1100,  # Stunden
+    "DRH2": 900,  # Stunden
+    "HAE": 1500   # Stunden
 }
 
 kostensaetze = {
+    "SAE" : 100,
     "FRA": 200,  # Euro
     "DRH1": 500, # Euro
     "DRH2": 500, # Euro
@@ -390,7 +392,7 @@ def vergleiche_downtime(ax1,ax2):
 
 
 def berechne_kosten(elf_data):
-    kosten_pro_maschine = {"SAE": 0 , "DRH": 0 , "FRA": 0 , "HAE" : 0 }
+    kosten_pro_maschine = {"SAE": 0 , "DRH": 0 ,"FRA": 0 , "HAE" : 0 }
     gesamt_kosten = 0
 
     for entry in elf_data:
@@ -422,7 +424,7 @@ def vergleiche_kosten(ax):
     kosten_planned, kosten_pro_maschine_planned = berechne_kosten(elf_planned)
     kosten_predictive, kosten_pro_maschine_predictive = berechne_kosten(elf_predictive)
 
-    print("Kostenbetrachtung für die drei ELFs:")
+    print("Kosten durch Stillstand für die drei ELFs:")
     print("\nNo Maintenance ELF:")
     print(f"Gesamtkosten: {kosten_nomaintenance:.2f} €")
     print(f"Kosten pro Maschine: {kosten_pro_maschine_nomaintenance} " )
